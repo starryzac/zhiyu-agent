@@ -16,7 +16,9 @@ export function parseForecastHistoryImport(raw: unknown, expectedSource: string)
   if (r.protocol !== 'forecast-history-import-v1' || sourceID(r.source_id) !== expectedSource || typeof r.replayed !== 'boolean') throw new Error('历史原结果与原请求不符');
   const from = date(r.from_date), through = date(r.through_date), days = (Date.parse(through) - Date.parse(from)) / 86400000 + 1;
   if (days < 1 || days > 366) throw new Error('历史覆盖范围不完整');
-  return { protocol: r.protocol, id: templateID(r.id), source_id: expectedSource, statement_id: nfText(r.statement_id), statement_hash: nfHash(r.statement_hash), from_date: from, through_date: through, recorded_at: nfTime(r.recorded_at), source_version: nfInt(r.source_version, 1), replayed: r.replayed };
+  const statement = nfText(r.statement_id, 128), id = nfText(r.id, 210);
+  if (/[\\/\r\n\0]/.test(statement) || id !== `forecast-history:${expectedSource}:${statement}`) throw new Error('历史原件身份与来源不符');
+  return { protocol: r.protocol, id, source_id: expectedSource, statement_id: statement, statement_hash: nfHash(r.statement_hash), from_date: from, through_date: through, recorded_at: nfTime(r.recorded_at), source_version: nfInt(r.source_version, 1), replayed: r.replayed };
 }
 export function forecastHistoryPendingKey(client: Client) { if (!client.session) throw new Error('请先登录'); return `zhiyu-go:forecast-history:v1:${client.session.environment}:${client.session.user_id}`; }
 export function loadForecastHistoryPending(client: Client): PendingForecastHistory | null {

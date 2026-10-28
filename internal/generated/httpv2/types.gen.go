@@ -5,9 +5,11 @@ package httpv2
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 // Defines values for ActivityPageVerificationScope.
@@ -19,357 +21,6 @@ const (
 func (e ActivityPageVerificationScope) Valid() bool {
 	switch e {
 	case ACTIVITYMEMBERSHIPSNAPSHOT:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentCandidateBankAuthority.
-const (
-	AgentCandidateBankAuthorityFalse AgentCandidateBankAuthority = false
-)
-
-// Valid indicates whether the value is a known member of the AgentCandidateBankAuthority enum.
-func (e AgentCandidateBankAuthority) Valid() bool {
-	switch e {
-	case AgentCandidateBankAuthorityFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentCandidateRequiresUserFields.
-const (
-	True AgentCandidateRequiresUserFields = true
-)
-
-// Valid indicates whether the value is a known member of the AgentCandidateRequiresUserFields enum.
-func (e AgentCandidateRequiresUserFields) Valid() bool {
-	switch e {
-	case True:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentCandidateTemplate.
-const (
-	SINGLEGOAL AgentCandidateTemplate = "SINGLE_GOAL"
-)
-
-// Valid indicates whether the value is a known member of the AgentCandidateTemplate enum.
-func (e AgentCandidateTemplate) Valid() bool {
-	switch e {
-	case SINGLEGOAL:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentEmptyToolName.
-const (
-	AgentEmptyToolNameCurrentRules AgentEmptyToolName = "current_rules"
-	AgentEmptyToolNameFundsSummary AgentEmptyToolName = "funds_summary"
-)
-
-// Valid indicates whether the value is a known member of the AgentEmptyToolName enum.
-func (e AgentEmptyToolName) Valid() bool {
-	switch e {
-	case AgentEmptyToolNameCurrentRules:
-		return true
-	case AgentEmptyToolNameFundsSummary:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentGoalToolName.
-const (
-	AgentGoalToolNameGoalStatus      AgentGoalToolName = "goal_status"
-	AgentGoalToolNamePolicyCandidate AgentGoalToolName = "policy_candidate"
-)
-
-// Valid indicates whether the value is a known member of the AgentGoalToolName enum.
-func (e AgentGoalToolName) Valid() bool {
-	switch e {
-	case AgentGoalToolNameGoalStatus:
-		return true
-	case AgentGoalToolNamePolicyCandidate:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentGrantViewStatus.
-const (
-	AgentGrantViewStatusACTIVE  AgentGrantViewStatus = "ACTIVE"
-	AgentGrantViewStatusEXPIRED AgentGrantViewStatus = "EXPIRED"
-	AgentGrantViewStatusPAUSED  AgentGrantViewStatus = "PAUSED"
-	AgentGrantViewStatusREVOKED AgentGrantViewStatus = "REVOKED"
-)
-
-// Valid indicates whether the value is a known member of the AgentGrantViewStatus enum.
-func (e AgentGrantViewStatus) Valid() bool {
-	switch e {
-	case AgentGrantViewStatusACTIVE:
-		return true
-	case AgentGrantViewStatusEXPIRED:
-		return true
-	case AgentGrantViewStatusPAUSED:
-		return true
-	case AgentGrantViewStatusREVOKED:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentModelTurnMode.
-const (
-	AgentModelTurnModeMODEL AgentModelTurnMode = "MODEL"
-)
-
-// Valid indicates whether the value is a known member of the AgentModelTurnMode enum.
-func (e AgentModelTurnMode) Valid() bool {
-	switch e {
-	case AgentModelTurnModeMODEL:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentObservationTool.
-const (
-	AgentObservationToolCurrentRules    AgentObservationTool = "current_rules"
-	AgentObservationToolFundsSummary    AgentObservationTool = "funds_summary"
-	AgentObservationToolGoalStatus      AgentObservationTool = "goal_status"
-	AgentObservationToolOperationStatus AgentObservationTool = "operation_status"
-	AgentObservationToolPolicyCandidate AgentObservationTool = "policy_candidate"
-)
-
-// Valid indicates whether the value is a known member of the AgentObservationTool enum.
-func (e AgentObservationTool) Valid() bool {
-	switch e {
-	case AgentObservationToolCurrentRules:
-		return true
-	case AgentObservationToolFundsSummary:
-		return true
-	case AgentObservationToolGoalStatus:
-		return true
-	case AgentObservationToolOperationStatus:
-		return true
-	case AgentObservationToolPolicyCandidate:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentObservationVerificationScope.
-const (
-	AgentObservationVerificationScopeDISPLAYSNAPSHOT AgentObservationVerificationScope = "DISPLAY_SNAPSHOT"
-)
-
-// Valid indicates whether the value is a known member of the AgentObservationVerificationScope enum.
-func (e AgentObservationVerificationScope) Valid() bool {
-	switch e {
-	case AgentObservationVerificationScopeDISPLAYSNAPSHOT:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentOfflineTurnMode.
-const (
-	AgentOfflineTurnModeOFFLINE AgentOfflineTurnMode = "OFFLINE"
-)
-
-// Valid indicates whether the value is a known member of the AgentOfflineTurnMode enum.
-func (e AgentOfflineTurnMode) Valid() bool {
-	switch e {
-	case AgentOfflineTurnModeOFFLINE:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentOperationToolName.
-const (
-	AgentOperationToolNameOperationStatus AgentOperationToolName = "operation_status"
-)
-
-// Valid indicates whether the value is a known member of the AgentOperationToolName enum.
-func (e AgentOperationToolName) Valid() bool {
-	switch e {
-	case AgentOperationToolNameOperationStatus:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentPolicyViewStatus.
-const (
-	AgentPolicyViewStatusACTIVE  AgentPolicyViewStatus = "ACTIVE"
-	AgentPolicyViewStatusEXPIRED AgentPolicyViewStatus = "EXPIRED"
-	AgentPolicyViewStatusPAUSED  AgentPolicyViewStatus = "PAUSED"
-	AgentPolicyViewStatusREVOKED AgentPolicyViewStatus = "REVOKED"
-)
-
-// Valid indicates whether the value is a known member of the AgentPolicyViewStatus enum.
-func (e AgentPolicyViewStatus) Valid() bool {
-	switch e {
-	case AgentPolicyViewStatusACTIVE:
-		return true
-	case AgentPolicyViewStatusEXPIRED:
-		return true
-	case AgentPolicyViewStatusPAUSED:
-		return true
-	case AgentPolicyViewStatusREVOKED:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentReferenceKind.
-const (
-	AgentReferenceKindACCOUNT   AgentReferenceKind = "ACCOUNT"
-	AgentReferenceKindACCOUNTS  AgentReferenceKind = "ACCOUNTS"
-	AgentReferenceKindGOAL      AgentReferenceKind = "GOAL"
-	AgentReferenceKindGRANT     AgentReferenceKind = "GRANT"
-	AgentReferenceKindOPERATION AgentReferenceKind = "OPERATION"
-	AgentReferenceKindPOLICY    AgentReferenceKind = "POLICY"
-	AgentReferenceKindRULES     AgentReferenceKind = "RULES"
-)
-
-// Valid indicates whether the value is a known member of the AgentReferenceKind enum.
-func (e AgentReferenceKind) Valid() bool {
-	switch e {
-	case AgentReferenceKindACCOUNT:
-		return true
-	case AgentReferenceKindACCOUNTS:
-		return true
-	case AgentReferenceKindGOAL:
-		return true
-	case AgentReferenceKindGRANT:
-		return true
-	case AgentReferenceKindOPERATION:
-		return true
-	case AgentReferenceKindPOLICY:
-		return true
-	case AgentReferenceKindRULES:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentResultAuthority.
-const (
-	AgentResultAuthorityFalse AgentResultAuthority = false
-)
-
-// Valid indicates whether the value is a known member of the AgentResultAuthority enum.
-func (e AgentResultAuthority) Valid() bool {
-	switch e {
-	case AgentResultAuthorityFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentResultMode.
-const (
-	AgentResultModeMODEL   AgentResultMode = "MODEL"
-	AgentResultModeOFFLINE AgentResultMode = "OFFLINE"
-)
-
-// Valid indicates whether the value is a known member of the AgentResultMode enum.
-func (e AgentResultMode) Valid() bool {
-	switch e {
-	case AgentResultModeMODEL:
-		return true
-	case AgentResultModeOFFLINE:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentResultProviderStatus.
-const (
-	AgentResultProviderStatusCALLED AgentResultProviderStatus = "CALLED"
-	AgentResultProviderStatusNOTRUN AgentResultProviderStatus = "NOT_RUN"
-)
-
-// Valid indicates whether the value is a known member of the AgentResultProviderStatus enum.
-func (e AgentResultProviderStatus) Valid() bool {
-	switch e {
-	case AgentResultProviderStatusCALLED:
-		return true
-	case AgentResultProviderStatusNOTRUN:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentStatusAuthority.
-const (
-	AgentStatusAuthorityFalse AgentStatusAuthority = false
-)
-
-// Valid indicates whether the value is a known member of the AgentStatusAuthority enum.
-func (e AgentStatusAuthority) Valid() bool {
-	switch e {
-	case AgentStatusAuthorityFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentStatusMode.
-const (
-	AgentStatusModeMODELAVAILABLE AgentStatusMode = "MODEL_AVAILABLE"
-	AgentStatusModeOFFLINE        AgentStatusMode = "OFFLINE"
-)
-
-// Valid indicates whether the value is a known member of the AgentStatusMode enum.
-func (e AgentStatusMode) Valid() bool {
-	switch e {
-	case AgentStatusModeMODELAVAILABLE:
-		return true
-	case AgentStatusModeOFFLINE:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for AgentStatusProviderStatus.
-const (
-	AgentStatusProviderStatusCONFIGUREDNOTVERIFIED AgentStatusProviderStatus = "CONFIGURED_NOT_VERIFIED"
-	AgentStatusProviderStatusNOTRUN                AgentStatusProviderStatus = "NOT_RUN"
-)
-
-// Valid indicates whether the value is a known member of the AgentStatusProviderStatus enum.
-func (e AgentStatusProviderStatus) Valid() bool {
-	switch e {
-	case AgentStatusProviderStatusCONFIGUREDNOTVERIFIED:
-		return true
-	case AgentStatusProviderStatusNOTRUN:
 		return true
 	default:
 		return false
@@ -408,22 +59,22 @@ func (e CandidateKind) Valid() bool {
 
 // Defines values for CandidateStatus.
 const (
-	LIQUIDITYRISK    CandidateStatus = "LIQUIDITY_RISK"
-	MINIMUMSHORTFALL CandidateStatus = "MINIMUM_SHORTFALL"
-	NOACTION         CandidateStatus = "NO_ACTION"
-	READY            CandidateStatus = "READY"
+	CandidateStatusLIQUIDITYRISK    CandidateStatus = "LIQUIDITY_RISK"
+	CandidateStatusMINIMUMSHORTFALL CandidateStatus = "MINIMUM_SHORTFALL"
+	CandidateStatusNOACTION         CandidateStatus = "NO_ACTION"
+	CandidateStatusREADY            CandidateStatus = "READY"
 )
 
 // Valid indicates whether the value is a known member of the CandidateStatus enum.
 func (e CandidateStatus) Valid() bool {
 	switch e {
-	case LIQUIDITYRISK:
+	case CandidateStatusLIQUIDITYRISK:
 		return true
-	case MINIMUMSHORTFALL:
+	case CandidateStatusMINIMUMSHORTFALL:
 		return true
-	case NOACTION:
+	case CandidateStatusNOACTION:
 		return true
-	case READY:
+	case CandidateStatusREADY:
 		return true
 	default:
 		return false
@@ -475,6 +126,1722 @@ const (
 func (e DashboardVerificationScope) Valid() bool {
 	switch e {
 	case DashboardVerificationScopeDISPLAYSNAPSHOT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentCandidateBankAuthority.
+const (
+	NativeAgentCandidateBankAuthorityFalse NativeAgentCandidateBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentCandidateBankAuthority enum.
+func (e NativeAgentCandidateBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentCandidateBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentCandidateRequiresUserFields.
+const (
+	NativeAgentCandidateRequiresUserFieldsTrue NativeAgentCandidateRequiresUserFields = true
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentCandidateRequiresUserFields enum.
+func (e NativeAgentCandidateRequiresUserFields) Valid() bool {
+	switch e {
+	case NativeAgentCandidateRequiresUserFieldsTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentCandidateTemplate.
+const (
+	NativeAgentCandidateTemplateSINGLEGOAL NativeAgentCandidateTemplate = "SINGLE_GOAL"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentCandidateTemplate enum.
+func (e NativeAgentCandidateTemplate) Valid() bool {
+	switch e {
+	case NativeAgentCandidateTemplateSINGLEGOAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentErrorCode.
+const (
+	AGENTBUDGETEXCEEDED        NativeAgentErrorCode = "AGENT_BUDGET_EXCEEDED"
+	AGENTINVALIDINPUT          NativeAgentErrorCode = "AGENT_INVALID_INPUT"
+	AGENTPROVIDERNOTCONFIGURED NativeAgentErrorCode = "AGENT_PROVIDER_NOT_CONFIGURED"
+	AGENTSTALEREFERENCE        NativeAgentErrorCode = "AGENT_STALE_REFERENCE"
+	AGENTTIMEOUT               NativeAgentErrorCode = "AGENT_TIMEOUT"
+	AGENTUNAVAILABLE           NativeAgentErrorCode = "AGENT_UNAVAILABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentErrorCode enum.
+func (e NativeAgentErrorCode) Valid() bool {
+	switch e {
+	case AGENTBUDGETEXCEEDED:
+		return true
+	case AGENTINVALIDINPUT:
+		return true
+	case AGENTPROVIDERNOTCONFIGURED:
+		return true
+	case AGENTSTALEREFERENCE:
+		return true
+	case AGENTTIMEOUT:
+		return true
+	case AGENTUNAVAILABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentErrorRetryClass.
+const (
+	AFTERREFRESH NativeAgentErrorRetryClass = "AFTER_REFRESH"
+	NEVER        NativeAgentErrorRetryClass = "NEVER"
+	USEOFFLINE   NativeAgentErrorRetryClass = "USE_OFFLINE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentErrorRetryClass enum.
+func (e NativeAgentErrorRetryClass) Valid() bool {
+	switch e {
+	case AFTERREFRESH:
+		return true
+	case NEVER:
+		return true
+	case USEOFFLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentFailureDetailsFailureProtocol.
+const (
+	ZhiyuAgentFailureV1 NativeAgentFailureDetailsFailureProtocol = "zhiyu-agent-failure-v1"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentFailureDetailsFailureProtocol enum.
+func (e NativeAgentFailureDetailsFailureProtocol) Valid() bool {
+	switch e {
+	case ZhiyuAgentFailureV1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentFailureDetailsFailureReason.
+const (
+	NativeAgentFailureDetailsFailureReasonREJECTED             NativeAgentFailureDetailsFailureReason = "REJECTED"
+	NativeAgentFailureDetailsFailureReasonREPORTEDUSAGE        NativeAgentFailureDetailsFailureReason = "REPORTED_USAGE"
+	NativeAgentFailureDetailsFailureReasonRESERVECALLS         NativeAgentFailureDetailsFailureReason = "RESERVE_CALLS"
+	NativeAgentFailureDetailsFailureReasonRESERVECONFIGURATION NativeAgentFailureDetailsFailureReason = "RESERVE_CONFIGURATION"
+	NativeAgentFailureDetailsFailureReasonRESERVECOST          NativeAgentFailureDetailsFailureReason = "RESERVE_COST"
+	NativeAgentFailureDetailsFailureReasonRESERVEINPUTBYTES    NativeAgentFailureDetailsFailureReason = "RESERVE_INPUT_BYTES"
+	NativeAgentFailureDetailsFailureReasonRESERVETOKENS        NativeAgentFailureDetailsFailureReason = "RESERVE_TOKENS"
+	NativeAgentFailureDetailsFailureReasonTOOLCALLS            NativeAgentFailureDetailsFailureReason = "TOOL_CALLS"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentFailureDetailsFailureReason enum.
+func (e NativeAgentFailureDetailsFailureReason) Valid() bool {
+	switch e {
+	case NativeAgentFailureDetailsFailureReasonREJECTED:
+		return true
+	case NativeAgentFailureDetailsFailureReasonREPORTEDUSAGE:
+		return true
+	case NativeAgentFailureDetailsFailureReasonRESERVECALLS:
+		return true
+	case NativeAgentFailureDetailsFailureReasonRESERVECONFIGURATION:
+		return true
+	case NativeAgentFailureDetailsFailureReasonRESERVECOST:
+		return true
+	case NativeAgentFailureDetailsFailureReasonRESERVEINPUTBYTES:
+		return true
+	case NativeAgentFailureDetailsFailureReasonRESERVETOKENS:
+		return true
+	case NativeAgentFailureDetailsFailureReasonTOOLCALLS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentFailureDetailsFailureStage.
+const (
+	NativeAgentFailureDetailsFailureStageBODYDECODE             NativeAgentFailureDetailsFailureStage = "BODY_DECODE"
+	NativeAgentFailureDetailsFailureStageCONTEXT                NativeAgentFailureDetailsFailureStage = "CONTEXT"
+	NativeAgentFailureDetailsFailureStageDONEWITHOUTOBSERVATION NativeAgentFailureDetailsFailureStage = "DONE_WITHOUT_OBSERVATION"
+	NativeAgentFailureDetailsFailureStageFINALSIZE              NativeAgentFailureDetailsFailureStage = "FINAL_SIZE"
+	NativeAgentFailureDetailsFailureStageFRESHREFERENCES        NativeAgentFailureDetailsFailureStage = "FRESH_REFERENCES"
+	NativeAgentFailureDetailsFailureStageFRESHSNAPSHOT          NativeAgentFailureDetailsFailureStage = "FRESH_SNAPSHOT"
+	NativeAgentFailureDetailsFailureStageINPUTENCODE            NativeAgentFailureDetailsFailureStage = "INPUT_ENCODE"
+	NativeAgentFailureDetailsFailureStageMODELTOOLSCOPE         NativeAgentFailureDetailsFailureStage = "MODEL_TOOL_SCOPE"
+	NativeAgentFailureDetailsFailureStageOBSERVATIONSIZE        NativeAgentFailureDetailsFailureStage = "OBSERVATION_SIZE"
+	NativeAgentFailureDetailsFailureStageOBSERVE                NativeAgentFailureDetailsFailureStage = "OBSERVE"
+	NativeAgentFailureDetailsFailureStagePROVIDER               NativeAgentFailureDetailsFailureStage = "PROVIDER"
+	NativeAgentFailureDetailsFailureStagePROVIDERCONFIGURATION  NativeAgentFailureDetailsFailureStage = "PROVIDER_CONFIGURATION"
+	NativeAgentFailureDetailsFailureStagePROVIDERENVELOPE       NativeAgentFailureDetailsFailureStage = "PROVIDER_ENVELOPE"
+	NativeAgentFailureDetailsFailureStagePROVIDERHTTPSTATUS     NativeAgentFailureDetailsFailureStage = "PROVIDER_HTTP_STATUS"
+	NativeAgentFailureDetailsFailureStagePROVIDERREPLYSCHEMA    NativeAgentFailureDetailsFailureStage = "PROVIDER_REPLY_SCHEMA"
+	NativeAgentFailureDetailsFailureStagePROVIDERRESPONSE       NativeAgentFailureDetailsFailureStage = "PROVIDER_RESPONSE"
+	NativeAgentFailureDetailsFailureStagePROVIDERUSAGE          NativeAgentFailureDetailsFailureStage = "PROVIDER_USAGE"
+	NativeAgentFailureDetailsFailureStageREPEATTOOL             NativeAgentFailureDetailsFailureStage = "REPEAT_TOOL"
+	NativeAgentFailureDetailsFailureStageREPLYDECODE            NativeAgentFailureDetailsFailureStage = "REPLY_DECODE"
+	NativeAgentFailureDetailsFailureStageRESERVE                NativeAgentFailureDetailsFailureStage = "RESERVE"
+	NativeAgentFailureDetailsFailureStageSNAPSHOTREAD           NativeAgentFailureDetailsFailureStage = "SNAPSHOT_READ"
+	NativeAgentFailureDetailsFailureStageSNAPSHOTVALIDATE       NativeAgentFailureDetailsFailureStage = "SNAPSHOT_VALIDATE"
+	NativeAgentFailureDetailsFailureStageTOOLLIMIT              NativeAgentFailureDetailsFailureStage = "TOOL_LIMIT"
+	NativeAgentFailureDetailsFailureStageTOOLREFERENCE          NativeAgentFailureDetailsFailureStage = "TOOL_REFERENCE"
+	NativeAgentFailureDetailsFailureStageTURNDECODE             NativeAgentFailureDetailsFailureStage = "TURN_DECODE"
+	NativeAgentFailureDetailsFailureStageUNKNOWN                NativeAgentFailureDetailsFailureStage = "UNKNOWN"
+	NativeAgentFailureDetailsFailureStageUSAGE                  NativeAgentFailureDetailsFailureStage = "USAGE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentFailureDetailsFailureStage enum.
+func (e NativeAgentFailureDetailsFailureStage) Valid() bool {
+	switch e {
+	case NativeAgentFailureDetailsFailureStageBODYDECODE:
+		return true
+	case NativeAgentFailureDetailsFailureStageCONTEXT:
+		return true
+	case NativeAgentFailureDetailsFailureStageDONEWITHOUTOBSERVATION:
+		return true
+	case NativeAgentFailureDetailsFailureStageFINALSIZE:
+		return true
+	case NativeAgentFailureDetailsFailureStageFRESHREFERENCES:
+		return true
+	case NativeAgentFailureDetailsFailureStageFRESHSNAPSHOT:
+		return true
+	case NativeAgentFailureDetailsFailureStageINPUTENCODE:
+		return true
+	case NativeAgentFailureDetailsFailureStageMODELTOOLSCOPE:
+		return true
+	case NativeAgentFailureDetailsFailureStageOBSERVATIONSIZE:
+		return true
+	case NativeAgentFailureDetailsFailureStageOBSERVE:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDER:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDERCONFIGURATION:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDERENVELOPE:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDERHTTPSTATUS:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDERREPLYSCHEMA:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDERRESPONSE:
+		return true
+	case NativeAgentFailureDetailsFailureStagePROVIDERUSAGE:
+		return true
+	case NativeAgentFailureDetailsFailureStageREPEATTOOL:
+		return true
+	case NativeAgentFailureDetailsFailureStageREPLYDECODE:
+		return true
+	case NativeAgentFailureDetailsFailureStageRESERVE:
+		return true
+	case NativeAgentFailureDetailsFailureStageSNAPSHOTREAD:
+		return true
+	case NativeAgentFailureDetailsFailureStageSNAPSHOTVALIDATE:
+		return true
+	case NativeAgentFailureDetailsFailureStageTOOLLIMIT:
+		return true
+	case NativeAgentFailureDetailsFailureStageTOOLREFERENCE:
+		return true
+	case NativeAgentFailureDetailsFailureStageTURNDECODE:
+		return true
+	case NativeAgentFailureDetailsFailureStageUNKNOWN:
+		return true
+	case NativeAgentFailureDetailsFailureStageUSAGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentFailureDetailsUsageScope.
+const (
+	NOPROVIDERRESERVATIONS                 NativeAgentFailureDetailsUsageScope = "NO_PROVIDER_RESERVATIONS"
+	PARTIALUNKNOWNATTEMPTSNOTINVOICE       NativeAgentFailureDetailsUsageScope = "PARTIAL_UNKNOWN_ATTEMPTS_NOT_INVOICE"
+	VALIDATEDRETURNEDREPLIESONLYNOTINVOICE NativeAgentFailureDetailsUsageScope = "VALIDATED_RETURNED_REPLIES_ONLY_NOT_INVOICE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentFailureDetailsUsageScope enum.
+func (e NativeAgentFailureDetailsUsageScope) Valid() bool {
+	switch e {
+	case NOPROVIDERRESERVATIONS:
+		return true
+	case PARTIALUNKNOWNATTEMPTSNOTINVOICE:
+		return true
+	case VALIDATEDRETURNEDREPLIESONLYNOTINVOICE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentForecastObservationBankAuthority.
+const (
+	NativeAgentForecastObservationBankAuthorityFalse NativeAgentForecastObservationBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentForecastObservationBankAuthority enum.
+func (e NativeAgentForecastObservationBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentForecastObservationBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentForecastObservationState.
+const (
+	NativeAgentForecastObservationStateINCOMPLETE        NativeAgentForecastObservationState = "INCOMPLETE"
+	NativeAgentForecastObservationStatePROTECTIONDEFICIT NativeAgentForecastObservationState = "PROTECTION_DEFICIT"
+	NativeAgentForecastObservationStateREADY             NativeAgentForecastObservationState = "READY"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentForecastObservationState enum.
+func (e NativeAgentForecastObservationState) Valid() bool {
+	switch e {
+	case NativeAgentForecastObservationStateINCOMPLETE:
+		return true
+	case NativeAgentForecastObservationStatePROTECTIONDEFICIT:
+		return true
+	case NativeAgentForecastObservationStateREADY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentGrantStatus.
+const (
+	NativeAgentGrantStatusACTIVE  NativeAgentGrantStatus = "ACTIVE"
+	NativeAgentGrantStatusEXPIRED NativeAgentGrantStatus = "EXPIRED"
+	NativeAgentGrantStatusPAUSED  NativeAgentGrantStatus = "PAUSED"
+	NativeAgentGrantStatusREVOKED NativeAgentGrantStatus = "REVOKED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentGrantStatus enum.
+func (e NativeAgentGrantStatus) Valid() bool {
+	switch e {
+	case NativeAgentGrantStatusACTIVE:
+		return true
+	case NativeAgentGrantStatusEXPIRED:
+		return true
+	case NativeAgentGrantStatusPAUSED:
+		return true
+	case NativeAgentGrantStatusREVOKED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentGrantReason.
+const (
+	NativeAgentGrantReasonCAPACITY                            NativeAgentGrantReason = "CAPACITY"
+	NativeAgentGrantReasonEVIDENCEINVALID                     NativeAgentGrantReason = "EVIDENCE_INVALID"
+	NativeAgentGrantReasonEXPIRED                             NativeAgentGrantReason = "EXPIRED"
+	NativeAgentGrantReasonNOTYETEFFECTIVE                     NativeAgentGrantReason = "NOT_YET_EFFECTIVE"
+	NativeAgentGrantReasonPAUSED                              NativeAgentGrantReason = "PAUSED"
+	NativeAgentGrantReasonPOLICYCHANGED                       NativeAgentGrantReason = "POLICY_CHANGED"
+	NativeAgentGrantReasonPOLICYUNAVAILABLE                   NativeAgentGrantReason = "POLICY_UNAVAILABLE"
+	NativeAgentGrantReasonREVOKED                             NativeAgentGrantReason = "REVOKED"
+	NativeAgentGrantReasonSCHEMAUNAVAILABLE                   NativeAgentGrantReason = "SCHEMA_UNAVAILABLE"
+	NativeAgentGrantReasonSESSIONEXPIREDATEVENT               NativeAgentGrantReason = "SESSION_EXPIRED_AT_EVENT"
+	NativeAgentGrantReasonSESSIONREVOCATIONHISTORYUNAVAILABLE NativeAgentGrantReason = "SESSION_REVOCATION_HISTORY_UNAVAILABLE"
+	NativeAgentGrantReasonSUBJECTUNAVAILABLE                  NativeAgentGrantReason = "SUBJECT_UNAVAILABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentGrantReason enum.
+func (e NativeAgentGrantReason) Valid() bool {
+	switch e {
+	case NativeAgentGrantReasonCAPACITY:
+		return true
+	case NativeAgentGrantReasonEVIDENCEINVALID:
+		return true
+	case NativeAgentGrantReasonEXPIRED:
+		return true
+	case NativeAgentGrantReasonNOTYETEFFECTIVE:
+		return true
+	case NativeAgentGrantReasonPAUSED:
+		return true
+	case NativeAgentGrantReasonPOLICYCHANGED:
+		return true
+	case NativeAgentGrantReasonPOLICYUNAVAILABLE:
+		return true
+	case NativeAgentGrantReasonREVOKED:
+		return true
+	case NativeAgentGrantReasonSCHEMAUNAVAILABLE:
+		return true
+	case NativeAgentGrantReasonSESSIONEXPIREDATEVENT:
+		return true
+	case NativeAgentGrantReasonSESSIONREVOCATIONHISTORYUNAVAILABLE:
+		return true
+	case NativeAgentGrantReasonSUBJECTUNAVAILABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentJointObservationBankAuthority.
+const (
+	NativeAgentJointObservationBankAuthorityFalse NativeAgentJointObservationBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentJointObservationBankAuthority enum.
+func (e NativeAgentJointObservationBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentJointObservationBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentJointObservationMode.
+const (
+	READONLYNOTEXECUTABLE NativeAgentJointObservationMode = "READ_ONLY_NOT_EXECUTABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentJointObservationMode enum.
+func (e NativeAgentJointObservationMode) Valid() bool {
+	switch e {
+	case READONLYNOTEXECUTABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentJointObservationState.
+const (
+	NativeAgentJointObservationStateINCOMPLETE NativeAgentJointObservationState = "INCOMPLETE"
+	NativeAgentJointObservationStateINFEASIBLE NativeAgentJointObservationState = "INFEASIBLE"
+	NativeAgentJointObservationStateOPTIMAL    NativeAgentJointObservationState = "OPTIMAL"
+	NativeAgentJointObservationStateUNKNOWN    NativeAgentJointObservationState = "UNKNOWN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentJointObservationState enum.
+func (e NativeAgentJointObservationState) Valid() bool {
+	switch e {
+	case NativeAgentJointObservationStateINCOMPLETE:
+		return true
+	case NativeAgentJointObservationStateINFEASIBLE:
+		return true
+	case NativeAgentJointObservationStateOPTIMAL:
+		return true
+	case NativeAgentJointObservationStateUNKNOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelCandidateBankAuthority.
+const (
+	NativeAgentModelCandidateBankAuthorityFalse NativeAgentModelCandidateBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelCandidateBankAuthority enum.
+func (e NativeAgentModelCandidateBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentModelCandidateBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelCandidateRequiresUserFields.
+const (
+	NativeAgentModelCandidateRequiresUserFieldsTrue NativeAgentModelCandidateRequiresUserFields = true
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelCandidateRequiresUserFields enum.
+func (e NativeAgentModelCandidateRequiresUserFields) Valid() bool {
+	switch e {
+	case NativeAgentModelCandidateRequiresUserFieldsTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelCandidateTemplate.
+const (
+	NativeAgentModelCandidateTemplateSINGLEGOAL NativeAgentModelCandidateTemplate = "SINGLE_GOAL"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelCandidateTemplate enum.
+func (e NativeAgentModelCandidateTemplate) Valid() bool {
+	switch e {
+	case NativeAgentModelCandidateTemplateSINGLEGOAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelObservationTool.
+const (
+	NativeAgentModelObservationToolCurrentRules      NativeAgentModelObservationTool = "current_rules"
+	NativeAgentModelObservationToolForecast365       NativeAgentModelObservationTool = "forecast365"
+	NativeAgentModelObservationToolFundsSummary      NativeAgentModelObservationTool = "funds_summary"
+	NativeAgentModelObservationToolGoalStatus        NativeAgentModelObservationTool = "goal_status"
+	NativeAgentModelObservationToolJointPreview      NativeAgentModelObservationTool = "joint_preview"
+	NativeAgentModelObservationToolNativeRules       NativeAgentModelObservationTool = "native_rules"
+	NativeAgentModelObservationToolObjectStatus      NativeAgentModelObservationTool = "object_status"
+	NativeAgentModelObservationToolOperationStatus   NativeAgentModelObservationTool = "operation_status"
+	NativeAgentModelObservationToolOriginalObjects   NativeAgentModelObservationTool = "original_objects"
+	NativeAgentModelObservationToolPolicyCandidate   NativeAgentModelObservationTool = "policy_candidate"
+	NativeAgentModelObservationToolTemplateCandidate NativeAgentModelObservationTool = "template_candidate"
+	NativeAgentModelObservationToolTemplateCatalog   NativeAgentModelObservationTool = "template_catalog"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelObservationTool enum.
+func (e NativeAgentModelObservationTool) Valid() bool {
+	switch e {
+	case NativeAgentModelObservationToolCurrentRules:
+		return true
+	case NativeAgentModelObservationToolForecast365:
+		return true
+	case NativeAgentModelObservationToolFundsSummary:
+		return true
+	case NativeAgentModelObservationToolGoalStatus:
+		return true
+	case NativeAgentModelObservationToolJointPreview:
+		return true
+	case NativeAgentModelObservationToolNativeRules:
+		return true
+	case NativeAgentModelObservationToolObjectStatus:
+		return true
+	case NativeAgentModelObservationToolOperationStatus:
+		return true
+	case NativeAgentModelObservationToolOriginalObjects:
+		return true
+	case NativeAgentModelObservationToolPolicyCandidate:
+		return true
+	case NativeAgentModelObservationToolTemplateCandidate:
+		return true
+	case NativeAgentModelObservationToolTemplateCatalog:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelObservationVerificationScope.
+const (
+	NativeAgentModelObservationVerificationScopeDISPLAYSNAPSHOT NativeAgentModelObservationVerificationScope = "DISPLAY_SNAPSHOT"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelObservationVerificationScope enum.
+func (e NativeAgentModelObservationVerificationScope) Valid() bool {
+	switch e {
+	case NativeAgentModelObservationVerificationScopeDISPLAYSNAPSHOT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelReferenceKind.
+const (
+	NativeAgentModelReferenceKindACCOUNT         NativeAgentModelReferenceKind = "ACCOUNT"
+	NativeAgentModelReferenceKindACCOUNTS        NativeAgentModelReferenceKind = "ACCOUNTS"
+	NativeAgentModelReferenceKindGOAL            NativeAgentModelReferenceKind = "GOAL"
+	NativeAgentModelReferenceKindGRANT           NativeAgentModelReferenceKind = "GRANT"
+	NativeAgentModelReferenceKindNATIVECONTEXT   NativeAgentModelReferenceKind = "NATIVE_CONTEXT"
+	NativeAgentModelReferenceKindNATIVEOPERATION NativeAgentModelReferenceKind = "NATIVE_OPERATION"
+	NativeAgentModelReferenceKindNATIVEPAYEE     NativeAgentModelReferenceKind = "NATIVE_PAYEE"
+	NativeAgentModelReferenceKindNATIVEPLAN      NativeAgentModelReferenceKind = "NATIVE_PLAN"
+	NativeAgentModelReferenceKindNATIVEPOLICY    NativeAgentModelReferenceKind = "NATIVE_POLICY"
+	NativeAgentModelReferenceKindNATIVEPOSITION  NativeAgentModelReferenceKind = "NATIVE_POSITION"
+	NativeAgentModelReferenceKindNATIVEQUESTION  NativeAgentModelReferenceKind = "NATIVE_QUESTION"
+	NativeAgentModelReferenceKindNATIVEVERSION   NativeAgentModelReferenceKind = "NATIVE_VERSION"
+	NativeAgentModelReferenceKindOPERATION       NativeAgentModelReferenceKind = "OPERATION"
+	NativeAgentModelReferenceKindPOLICY          NativeAgentModelReferenceKind = "POLICY"
+	NativeAgentModelReferenceKindRULES           NativeAgentModelReferenceKind = "RULES"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelReferenceKind enum.
+func (e NativeAgentModelReferenceKind) Valid() bool {
+	switch e {
+	case NativeAgentModelReferenceKindACCOUNT:
+		return true
+	case NativeAgentModelReferenceKindACCOUNTS:
+		return true
+	case NativeAgentModelReferenceKindGOAL:
+		return true
+	case NativeAgentModelReferenceKindGRANT:
+		return true
+	case NativeAgentModelReferenceKindNATIVECONTEXT:
+		return true
+	case NativeAgentModelReferenceKindNATIVEOPERATION:
+		return true
+	case NativeAgentModelReferenceKindNATIVEPAYEE:
+		return true
+	case NativeAgentModelReferenceKindNATIVEPLAN:
+		return true
+	case NativeAgentModelReferenceKindNATIVEPOLICY:
+		return true
+	case NativeAgentModelReferenceKindNATIVEPOSITION:
+		return true
+	case NativeAgentModelReferenceKindNATIVEQUESTION:
+		return true
+	case NativeAgentModelReferenceKindNATIVEVERSION:
+		return true
+	case NativeAgentModelReferenceKindOPERATION:
+		return true
+	case NativeAgentModelReferenceKindPOLICY:
+		return true
+	case NativeAgentModelReferenceKindRULES:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelTemplateCandidateBankAuthority.
+const (
+	NativeAgentModelTemplateCandidateBankAuthorityFalse NativeAgentModelTemplateCandidateBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelTemplateCandidateBankAuthority enum.
+func (e NativeAgentModelTemplateCandidateBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentModelTemplateCandidateBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelTemplateCandidateMode.
+const (
+	NativeAgentModelTemplateCandidateModeIFUSERCONFIRMED NativeAgentModelTemplateCandidateMode = "IF_USER_CONFIRMED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelTemplateCandidateMode enum.
+func (e NativeAgentModelTemplateCandidateMode) Valid() bool {
+	switch e {
+	case NativeAgentModelTemplateCandidateModeIFUSERCONFIRMED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelTemplateCandidateRequiresUserConfirmation.
+const (
+	NativeAgentModelTemplateCandidateRequiresUserConfirmationTrue NativeAgentModelTemplateCandidateRequiresUserConfirmation = true
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelTemplateCandidateRequiresUserConfirmation enum.
+func (e NativeAgentModelTemplateCandidateRequiresUserConfirmation) Valid() bool {
+	switch e {
+	case NativeAgentModelTemplateCandidateRequiresUserConfirmationTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelTemplateCandidateState.
+const (
+	NativeAgentModelTemplateCandidateStateADVICEONLY                 NativeAgentModelTemplateCandidateState = "ADVICE_ONLY"
+	NativeAgentModelTemplateCandidateStateCOMPLETE                   NativeAgentModelTemplateCandidateState = "COMPLETE"
+	NativeAgentModelTemplateCandidateStateCONFIRMED                  NativeAgentModelTemplateCandidateState = "CONFIRMED"
+	NativeAgentModelTemplateCandidateStateCONSTRAINTSREADY           NativeAgentModelTemplateCandidateState = "CONSTRAINTS_READY"
+	NativeAgentModelTemplateCandidateStateDEADLINEBLOCKED            NativeAgentModelTemplateCandidateState = "DEADLINE_BLOCKED"
+	NativeAgentModelTemplateCandidateStateFLOORRELEASED              NativeAgentModelTemplateCandidateState = "FLOOR_RELEASED"
+	NativeAgentModelTemplateCandidateStateHARDGUARANTEESHORTFALL     NativeAgentModelTemplateCandidateState = "HARD_GUARANTEE_SHORTFALL"
+	NativeAgentModelTemplateCandidateStateINCOMPLETE                 NativeAgentModelTemplateCandidateState = "INCOMPLETE"
+	NativeAgentModelTemplateCandidateStateMINIMUMSHORTFALL           NativeAgentModelTemplateCandidateState = "MINIMUM_SHORTFALL"
+	NativeAgentModelTemplateCandidateStateMONTHLYMAXALREADYEXCEEDED  NativeAgentModelTemplateCandidateState = "MONTHLY_MAX_ALREADY_EXCEEDED"
+	NativeAgentModelTemplateCandidateStateNOACTION                   NativeAgentModelTemplateCandidateState = "NO_ACTION"
+	NativeAgentModelTemplateCandidateStateOUTOFAUTHORIZATION         NativeAgentModelTemplateCandidateState = "OUT_OF_AUTHORIZATION"
+	NativeAgentModelTemplateCandidateStateOVERDUEREADY               NativeAgentModelTemplateCandidateState = "OVERDUE_READY"
+	NativeAgentModelTemplateCandidateStatePARTIAL                    NativeAgentModelTemplateCandidateState = "PARTIAL"
+	NativeAgentModelTemplateCandidateStateREADY                      NativeAgentModelTemplateCandidateState = "READY"
+	NativeAgentModelTemplateCandidateStateSILENTSTABLEORDEDUPLICATED NativeAgentModelTemplateCandidateState = "SILENT_STABLE_OR_DEDUPLICATED"
+	NativeAgentModelTemplateCandidateStateUSERQUESTIONREQUIRED       NativeAgentModelTemplateCandidateState = "USER_QUESTION_REQUIRED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelTemplateCandidateState enum.
+func (e NativeAgentModelTemplateCandidateState) Valid() bool {
+	switch e {
+	case NativeAgentModelTemplateCandidateStateADVICEONLY:
+		return true
+	case NativeAgentModelTemplateCandidateStateCOMPLETE:
+		return true
+	case NativeAgentModelTemplateCandidateStateCONFIRMED:
+		return true
+	case NativeAgentModelTemplateCandidateStateCONSTRAINTSREADY:
+		return true
+	case NativeAgentModelTemplateCandidateStateDEADLINEBLOCKED:
+		return true
+	case NativeAgentModelTemplateCandidateStateFLOORRELEASED:
+		return true
+	case NativeAgentModelTemplateCandidateStateHARDGUARANTEESHORTFALL:
+		return true
+	case NativeAgentModelTemplateCandidateStateINCOMPLETE:
+		return true
+	case NativeAgentModelTemplateCandidateStateMINIMUMSHORTFALL:
+		return true
+	case NativeAgentModelTemplateCandidateStateMONTHLYMAXALREADYEXCEEDED:
+		return true
+	case NativeAgentModelTemplateCandidateStateNOACTION:
+		return true
+	case NativeAgentModelTemplateCandidateStateOUTOFAUTHORIZATION:
+		return true
+	case NativeAgentModelTemplateCandidateStateOVERDUEREADY:
+		return true
+	case NativeAgentModelTemplateCandidateStatePARTIAL:
+		return true
+	case NativeAgentModelTemplateCandidateStateREADY:
+		return true
+	case NativeAgentModelTemplateCandidateStateSILENTSTABLEORDEDUPLICATED:
+		return true
+	case NativeAgentModelTemplateCandidateStateUSERQUESTIONREQUIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentModelTurnMode.
+const (
+	NativeAgentModelTurnModeMODEL NativeAgentModelTurnMode = "MODEL"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentModelTurnMode enum.
+func (e NativeAgentModelTurnMode) Valid() bool {
+	switch e {
+	case NativeAgentModelTurnModeMODEL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollectionAuthority.
+const (
+	NativeAgentNativeGrantCollectionAuthorityFalse NativeAgentNativeGrantCollectionAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollectionAuthority enum.
+func (e NativeAgentNativeGrantCollectionAuthority) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollectionAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollectionBankAuthority.
+const (
+	NativeAgentNativeGrantCollectionBankAuthorityFalse NativeAgentNativeGrantCollectionBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollectionBankAuthority enum.
+func (e NativeAgentNativeGrantCollectionBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollectionBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollectionProtocol.
+const (
+	ZhiyuAgentNativeGrantsV1 NativeAgentNativeGrantCollectionProtocol = "zhiyu-agent-native-grants-v1"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollectionProtocol enum.
+func (e NativeAgentNativeGrantCollectionProtocol) Valid() bool {
+	switch e {
+	case ZhiyuAgentNativeGrantsV1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollectionSessionVerification.
+const (
+	NativeAgentNativeGrantCollectionSessionVerificationHISTORYINCOMPLETE               NativeAgentNativeGrantCollectionSessionVerification = "HISTORY_INCOMPLETE"
+	NativeAgentNativeGrantCollectionSessionVerificationNOTVERIFIED                     NativeAgentNativeGrantCollectionSessionVerification = "NOT_VERIFIED"
+	NativeAgentNativeGrantCollectionSessionVerificationSCOPEDSUBJECTANDEVENTEXPIRYONLY NativeAgentNativeGrantCollectionSessionVerification = "SCOPED_SUBJECT_AND_EVENT_EXPIRY_ONLY"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollectionSessionVerification enum.
+func (e NativeAgentNativeGrantCollectionSessionVerification) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollectionSessionVerificationHISTORYINCOMPLETE:
+		return true
+	case NativeAgentNativeGrantCollectionSessionVerificationNOTVERIFIED:
+		return true
+	case NativeAgentNativeGrantCollectionSessionVerificationSCOPEDSUBJECTANDEVENTEXPIRYONLY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollectionStatus.
+const (
+	NativeAgentNativeGrantCollectionStatusCOMPLETE    NativeAgentNativeGrantCollectionStatus = "COMPLETE"
+	NativeAgentNativeGrantCollectionStatusUNAVAILABLE NativeAgentNativeGrantCollectionStatus = "UNAVAILABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollectionStatus enum.
+func (e NativeAgentNativeGrantCollectionStatus) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollectionStatusCOMPLETE:
+		return true
+	case NativeAgentNativeGrantCollectionStatusUNAVAILABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollectionVerificationScope.
+const (
+	NativeAgentNativeGrantCollectionVerificationScopeNOTVERIFIED                              NativeAgentNativeGrantCollectionVerificationScope = "NOT_VERIFIED"
+	NativeAgentNativeGrantCollectionVerificationScopeOWNEDORIGINALSANDCOMPLETEGRANTSTATECHAIN NativeAgentNativeGrantCollectionVerificationScope = "OWNED_ORIGINALS_AND_COMPLETE_GRANT_STATE_CHAIN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollectionVerificationScope enum.
+func (e NativeAgentNativeGrantCollectionVerificationScope) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollectionVerificationScopeNOTVERIFIED:
+		return true
+	case NativeAgentNativeGrantCollectionVerificationScopeOWNEDORIGINALSANDCOMPLETEGRANTSTATECHAIN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollection0SessionVerification.
+const (
+	NativeAgentNativeGrantCollection0SessionVerificationHISTORYINCOMPLETE               NativeAgentNativeGrantCollection0SessionVerification = "HISTORY_INCOMPLETE"
+	NativeAgentNativeGrantCollection0SessionVerificationSCOPEDSUBJECTANDEVENTEXPIRYONLY NativeAgentNativeGrantCollection0SessionVerification = "SCOPED_SUBJECT_AND_EVENT_EXPIRY_ONLY"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollection0SessionVerification enum.
+func (e NativeAgentNativeGrantCollection0SessionVerification) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollection0SessionVerificationHISTORYINCOMPLETE:
+		return true
+	case NativeAgentNativeGrantCollection0SessionVerificationSCOPEDSUBJECTANDEVENTEXPIRYONLY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollection0Status.
+const (
+	NativeAgentNativeGrantCollection0StatusCOMPLETE NativeAgentNativeGrantCollection0Status = "COMPLETE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollection0Status enum.
+func (e NativeAgentNativeGrantCollection0Status) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollection0StatusCOMPLETE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollection0VerificationScope.
+const (
+	NativeAgentNativeGrantCollection0VerificationScopeOWNEDORIGINALSANDCOMPLETEGRANTSTATECHAIN NativeAgentNativeGrantCollection0VerificationScope = "OWNED_ORIGINALS_AND_COMPLETE_GRANT_STATE_CHAIN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollection0VerificationScope enum.
+func (e NativeAgentNativeGrantCollection0VerificationScope) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollection0VerificationScopeOWNEDORIGINALSANDCOMPLETEGRANTSTATECHAIN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollection1SessionVerification.
+const (
+	NativeAgentNativeGrantCollection1SessionVerificationNOTVERIFIED NativeAgentNativeGrantCollection1SessionVerification = "NOT_VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollection1SessionVerification enum.
+func (e NativeAgentNativeGrantCollection1SessionVerification) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollection1SessionVerificationNOTVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollection1Status.
+const (
+	NativeAgentNativeGrantCollection1StatusUNAVAILABLE NativeAgentNativeGrantCollection1Status = "UNAVAILABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollection1Status enum.
+func (e NativeAgentNativeGrantCollection1Status) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollection1StatusUNAVAILABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantCollection1VerificationScope.
+const (
+	NativeAgentNativeGrantCollection1VerificationScopeNOTVERIFIED NativeAgentNativeGrantCollection1VerificationScope = "NOT_VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantCollection1VerificationScope enum.
+func (e NativeAgentNativeGrantCollection1VerificationScope) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantCollection1VerificationScopeNOTVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantDisplayAuthority.
+const (
+	NativeAgentNativeGrantDisplayAuthorityFalse NativeAgentNativeGrantDisplayAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantDisplayAuthority enum.
+func (e NativeAgentNativeGrantDisplayAuthority) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantDisplayAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantDisplayBankAuthority.
+const (
+	NativeAgentNativeGrantDisplayBankAuthorityFalse NativeAgentNativeGrantDisplayBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantDisplayBankAuthority enum.
+func (e NativeAgentNativeGrantDisplayBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantDisplayBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantDisplayEffectiveState.
+const (
+	NativeAgentNativeGrantDisplayEffectiveStateCURRENTDISPLAYONLY NativeAgentNativeGrantDisplayEffectiveState = "CURRENT_DISPLAY_ONLY"
+	NativeAgentNativeGrantDisplayEffectiveStateEXPIRED            NativeAgentNativeGrantDisplayEffectiveState = "EXPIRED"
+	NativeAgentNativeGrantDisplayEffectiveStateNOTYETEFFECTIVE    NativeAgentNativeGrantDisplayEffectiveState = "NOT_YET_EFFECTIVE"
+	NativeAgentNativeGrantDisplayEffectiveStatePAUSED             NativeAgentNativeGrantDisplayEffectiveState = "PAUSED"
+	NativeAgentNativeGrantDisplayEffectiveStatePOLICYCHANGED      NativeAgentNativeGrantDisplayEffectiveState = "POLICY_CHANGED"
+	NativeAgentNativeGrantDisplayEffectiveStateREVOKED            NativeAgentNativeGrantDisplayEffectiveState = "REVOKED"
+	NativeAgentNativeGrantDisplayEffectiveStateUNAVAILABLE        NativeAgentNativeGrantDisplayEffectiveState = "UNAVAILABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantDisplayEffectiveState enum.
+func (e NativeAgentNativeGrantDisplayEffectiveState) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantDisplayEffectiveStateCURRENTDISPLAYONLY:
+		return true
+	case NativeAgentNativeGrantDisplayEffectiveStateEXPIRED:
+		return true
+	case NativeAgentNativeGrantDisplayEffectiveStateNOTYETEFFECTIVE:
+		return true
+	case NativeAgentNativeGrantDisplayEffectiveStatePAUSED:
+		return true
+	case NativeAgentNativeGrantDisplayEffectiveStatePOLICYCHANGED:
+		return true
+	case NativeAgentNativeGrantDisplayEffectiveStateREVOKED:
+		return true
+	case NativeAgentNativeGrantDisplayEffectiveStateUNAVAILABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantDisplayFamily.
+const (
+	NativeAgentNativeGrantDisplayFamilyASSETALLOCATION  NativeAgentNativeGrantDisplayFamily = "ASSET_ALLOCATION"
+	NativeAgentNativeGrantDisplayFamilyJOINTGOALS       NativeAgentNativeGrantDisplayFamily = "JOINT_GOALS"
+	NativeAgentNativeGrantDisplayFamilyMATURITYREINVEST NativeAgentNativeGrantDisplayFamily = "MATURITY_REINVEST"
+	NativeAgentNativeGrantDisplayFamilyPERIODICPAYMENT  NativeAgentNativeGrantDisplayFamily = "PERIODIC_PAYMENT"
+	NativeAgentNativeGrantDisplayFamilySINGLEGOAL       NativeAgentNativeGrantDisplayFamily = "SINGLE_GOAL"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantDisplayFamily enum.
+func (e NativeAgentNativeGrantDisplayFamily) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantDisplayFamilyASSETALLOCATION:
+		return true
+	case NativeAgentNativeGrantDisplayFamilyJOINTGOALS:
+		return true
+	case NativeAgentNativeGrantDisplayFamilyMATURITYREINVEST:
+		return true
+	case NativeAgentNativeGrantDisplayFamilyPERIODICPAYMENT:
+		return true
+	case NativeAgentNativeGrantDisplayFamilySINGLEGOAL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantDisplayRecordedState.
+const (
+	NativeAgentNativeGrantDisplayRecordedStateACTIVE  NativeAgentNativeGrantDisplayRecordedState = "ACTIVE"
+	NativeAgentNativeGrantDisplayRecordedStatePAUSED  NativeAgentNativeGrantDisplayRecordedState = "PAUSED"
+	NativeAgentNativeGrantDisplayRecordedStateREVOKED NativeAgentNativeGrantDisplayRecordedState = "REVOKED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantDisplayRecordedState enum.
+func (e NativeAgentNativeGrantDisplayRecordedState) Valid() bool {
+	switch e {
+	case NativeAgentNativeGrantDisplayRecordedStateACTIVE:
+		return true
+	case NativeAgentNativeGrantDisplayRecordedStatePAUSED:
+		return true
+	case NativeAgentNativeGrantDisplayRecordedStateREVOKED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeGrantDisplayVersion.
+const (
+	N1 NativeAgentNativeGrantDisplayVersion = 1
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeGrantDisplayVersion enum.
+func (e NativeAgentNativeGrantDisplayVersion) Valid() bool {
+	switch e {
+	case N1:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentNativeRuleEffectiveState.
+const (
+	NativeAgentNativeRuleEffectiveStateACTIVE               NativeAgentNativeRuleEffectiveState = "ACTIVE"
+	NativeAgentNativeRuleEffectiveStateCONFIRMATIONINFUTURE NativeAgentNativeRuleEffectiveState = "CONFIRMATION_IN_FUTURE"
+	NativeAgentNativeRuleEffectiveStateCONFIRMED            NativeAgentNativeRuleEffectiveState = "CONFIRMED"
+	NativeAgentNativeRuleEffectiveStateEXPIRED              NativeAgentNativeRuleEffectiveState = "EXPIRED"
+	NativeAgentNativeRuleEffectiveStateREVOKED              NativeAgentNativeRuleEffectiveState = "REVOKED"
+	NativeAgentNativeRuleEffectiveStateSUSPENDED            NativeAgentNativeRuleEffectiveState = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentNativeRuleEffectiveState enum.
+func (e NativeAgentNativeRuleEffectiveState) Valid() bool {
+	switch e {
+	case NativeAgentNativeRuleEffectiveStateACTIVE:
+		return true
+	case NativeAgentNativeRuleEffectiveStateCONFIRMATIONINFUTURE:
+		return true
+	case NativeAgentNativeRuleEffectiveStateCONFIRMED:
+		return true
+	case NativeAgentNativeRuleEffectiveStateEXPIRED:
+		return true
+	case NativeAgentNativeRuleEffectiveStateREVOKED:
+		return true
+	case NativeAgentNativeRuleEffectiveStateSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentObjectObservationKind.
+const (
+	NativeAgentObjectObservationKindACCOUNT         NativeAgentObjectObservationKind = "ACCOUNT"
+	NativeAgentObjectObservationKindGOAL            NativeAgentObjectObservationKind = "GOAL"
+	NativeAgentObjectObservationKindGRANT           NativeAgentObjectObservationKind = "GRANT"
+	NativeAgentObjectObservationKindNATIVEOPERATION NativeAgentObjectObservationKind = "NATIVE_OPERATION"
+	NativeAgentObjectObservationKindNATIVEPAYEE     NativeAgentObjectObservationKind = "NATIVE_PAYEE"
+	NativeAgentObjectObservationKindNATIVEPLAN      NativeAgentObjectObservationKind = "NATIVE_PLAN"
+	NativeAgentObjectObservationKindNATIVEPOLICY    NativeAgentObjectObservationKind = "NATIVE_POLICY"
+	NativeAgentObjectObservationKindNATIVEPOSITION  NativeAgentObjectObservationKind = "NATIVE_POSITION"
+	NativeAgentObjectObservationKindNATIVEQUESTION  NativeAgentObjectObservationKind = "NATIVE_QUESTION"
+	NativeAgentObjectObservationKindNATIVEVERSION   NativeAgentObjectObservationKind = "NATIVE_VERSION"
+	NativeAgentObjectObservationKindOPERATION       NativeAgentObjectObservationKind = "OPERATION"
+	NativeAgentObjectObservationKindPOLICY          NativeAgentObjectObservationKind = "POLICY"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentObjectObservationKind enum.
+func (e NativeAgentObjectObservationKind) Valid() bool {
+	switch e {
+	case NativeAgentObjectObservationKindACCOUNT:
+		return true
+	case NativeAgentObjectObservationKindGOAL:
+		return true
+	case NativeAgentObjectObservationKindGRANT:
+		return true
+	case NativeAgentObjectObservationKindNATIVEOPERATION:
+		return true
+	case NativeAgentObjectObservationKindNATIVEPAYEE:
+		return true
+	case NativeAgentObjectObservationKindNATIVEPLAN:
+		return true
+	case NativeAgentObjectObservationKindNATIVEPOLICY:
+		return true
+	case NativeAgentObjectObservationKindNATIVEPOSITION:
+		return true
+	case NativeAgentObjectObservationKindNATIVEQUESTION:
+		return true
+	case NativeAgentObjectObservationKindNATIVEVERSION:
+		return true
+	case NativeAgentObjectObservationKindOPERATION:
+		return true
+	case NativeAgentObjectObservationKindPOLICY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentObservationTool.
+const (
+	NativeAgentObservationToolCurrentRules      NativeAgentObservationTool = "current_rules"
+	NativeAgentObservationToolForecast365       NativeAgentObservationTool = "forecast365"
+	NativeAgentObservationToolFundsSummary      NativeAgentObservationTool = "funds_summary"
+	NativeAgentObservationToolGoalStatus        NativeAgentObservationTool = "goal_status"
+	NativeAgentObservationToolJointPreview      NativeAgentObservationTool = "joint_preview"
+	NativeAgentObservationToolNativeGrants      NativeAgentObservationTool = "native_grants"
+	NativeAgentObservationToolNativeRules       NativeAgentObservationTool = "native_rules"
+	NativeAgentObservationToolObjectStatus      NativeAgentObservationTool = "object_status"
+	NativeAgentObservationToolOperationStatus   NativeAgentObservationTool = "operation_status"
+	NativeAgentObservationToolOriginalObjects   NativeAgentObservationTool = "original_objects"
+	NativeAgentObservationToolPolicyCandidate   NativeAgentObservationTool = "policy_candidate"
+	NativeAgentObservationToolTemplateCandidate NativeAgentObservationTool = "template_candidate"
+	NativeAgentObservationToolTemplateCatalog   NativeAgentObservationTool = "template_catalog"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentObservationTool enum.
+func (e NativeAgentObservationTool) Valid() bool {
+	switch e {
+	case NativeAgentObservationToolCurrentRules:
+		return true
+	case NativeAgentObservationToolForecast365:
+		return true
+	case NativeAgentObservationToolFundsSummary:
+		return true
+	case NativeAgentObservationToolGoalStatus:
+		return true
+	case NativeAgentObservationToolJointPreview:
+		return true
+	case NativeAgentObservationToolNativeGrants:
+		return true
+	case NativeAgentObservationToolNativeRules:
+		return true
+	case NativeAgentObservationToolObjectStatus:
+		return true
+	case NativeAgentObservationToolOperationStatus:
+		return true
+	case NativeAgentObservationToolOriginalObjects:
+		return true
+	case NativeAgentObservationToolPolicyCandidate:
+		return true
+	case NativeAgentObservationToolTemplateCandidate:
+		return true
+	case NativeAgentObservationToolTemplateCatalog:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentObservationVerificationScope.
+const (
+	NativeAgentObservationVerificationScopeDISPLAYSNAPSHOT NativeAgentObservationVerificationScope = "DISPLAY_SNAPSHOT"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentObservationVerificationScope enum.
+func (e NativeAgentObservationVerificationScope) Valid() bool {
+	switch e {
+	case NativeAgentObservationVerificationScopeDISPLAYSNAPSHOT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentOfflineTurnMode.
+const (
+	NativeAgentOfflineTurnModeOFFLINE NativeAgentOfflineTurnMode = "OFFLINE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentOfflineTurnMode enum.
+func (e NativeAgentOfflineTurnMode) Valid() bool {
+	switch e {
+	case NativeAgentOfflineTurnModeOFFLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentPolicyStatus.
+const (
+	NativeAgentPolicyStatusACTIVE  NativeAgentPolicyStatus = "ACTIVE"
+	NativeAgentPolicyStatusEXPIRED NativeAgentPolicyStatus = "EXPIRED"
+	NativeAgentPolicyStatusPAUSED  NativeAgentPolicyStatus = "PAUSED"
+	NativeAgentPolicyStatusREVOKED NativeAgentPolicyStatus = "REVOKED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentPolicyStatus enum.
+func (e NativeAgentPolicyStatus) Valid() bool {
+	switch e {
+	case NativeAgentPolicyStatusACTIVE:
+		return true
+	case NativeAgentPolicyStatusEXPIRED:
+		return true
+	case NativeAgentPolicyStatusPAUSED:
+		return true
+	case NativeAgentPolicyStatusREVOKED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentReferenceKind.
+const (
+	NativeAgentReferenceKindACCOUNT         NativeAgentReferenceKind = "ACCOUNT"
+	NativeAgentReferenceKindACCOUNTS        NativeAgentReferenceKind = "ACCOUNTS"
+	NativeAgentReferenceKindGOAL            NativeAgentReferenceKind = "GOAL"
+	NativeAgentReferenceKindGRANT           NativeAgentReferenceKind = "GRANT"
+	NativeAgentReferenceKindNATIVECONTEXT   NativeAgentReferenceKind = "NATIVE_CONTEXT"
+	NativeAgentReferenceKindNATIVEGRANT     NativeAgentReferenceKind = "NATIVE_GRANT"
+	NativeAgentReferenceKindNATIVEGRANTS    NativeAgentReferenceKind = "NATIVE_GRANTS"
+	NativeAgentReferenceKindNATIVEOPERATION NativeAgentReferenceKind = "NATIVE_OPERATION"
+	NativeAgentReferenceKindNATIVEPAYEE     NativeAgentReferenceKind = "NATIVE_PAYEE"
+	NativeAgentReferenceKindNATIVEPLAN      NativeAgentReferenceKind = "NATIVE_PLAN"
+	NativeAgentReferenceKindNATIVEPOLICY    NativeAgentReferenceKind = "NATIVE_POLICY"
+	NativeAgentReferenceKindNATIVEPOSITION  NativeAgentReferenceKind = "NATIVE_POSITION"
+	NativeAgentReferenceKindNATIVEQUESTION  NativeAgentReferenceKind = "NATIVE_QUESTION"
+	NativeAgentReferenceKindNATIVEVERSION   NativeAgentReferenceKind = "NATIVE_VERSION"
+	NativeAgentReferenceKindOPERATION       NativeAgentReferenceKind = "OPERATION"
+	NativeAgentReferenceKindPOLICY          NativeAgentReferenceKind = "POLICY"
+	NativeAgentReferenceKindRULES           NativeAgentReferenceKind = "RULES"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentReferenceKind enum.
+func (e NativeAgentReferenceKind) Valid() bool {
+	switch e {
+	case NativeAgentReferenceKindACCOUNT:
+		return true
+	case NativeAgentReferenceKindACCOUNTS:
+		return true
+	case NativeAgentReferenceKindGOAL:
+		return true
+	case NativeAgentReferenceKindGRANT:
+		return true
+	case NativeAgentReferenceKindNATIVECONTEXT:
+		return true
+	case NativeAgentReferenceKindNATIVEGRANT:
+		return true
+	case NativeAgentReferenceKindNATIVEGRANTS:
+		return true
+	case NativeAgentReferenceKindNATIVEOPERATION:
+		return true
+	case NativeAgentReferenceKindNATIVEPAYEE:
+		return true
+	case NativeAgentReferenceKindNATIVEPLAN:
+		return true
+	case NativeAgentReferenceKindNATIVEPOLICY:
+		return true
+	case NativeAgentReferenceKindNATIVEPOSITION:
+		return true
+	case NativeAgentReferenceKindNATIVEQUESTION:
+		return true
+	case NativeAgentReferenceKindNATIVEVERSION:
+		return true
+	case NativeAgentReferenceKindOPERATION:
+		return true
+	case NativeAgentReferenceKindPOLICY:
+		return true
+	case NativeAgentReferenceKindRULES:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResultAuthority.
+const (
+	NativeAgentResultAuthorityFalse NativeAgentResultAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResultAuthority enum.
+func (e NativeAgentResultAuthority) Valid() bool {
+	switch e {
+	case NativeAgentResultAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResultMode.
+const (
+	NativeAgentResultModeMODEL   NativeAgentResultMode = "MODEL"
+	NativeAgentResultModeOFFLINE NativeAgentResultMode = "OFFLINE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResultMode enum.
+func (e NativeAgentResultMode) Valid() bool {
+	switch e {
+	case NativeAgentResultModeMODEL:
+		return true
+	case NativeAgentResultModeOFFLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResultProviderStatus.
+const (
+	NativeAgentResultProviderStatusCALLED NativeAgentResultProviderStatus = "CALLED"
+	NativeAgentResultProviderStatusNOTRUN NativeAgentResultProviderStatus = "NOT_RUN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResultProviderStatus enum.
+func (e NativeAgentResultProviderStatus) Valid() bool {
+	switch e {
+	case NativeAgentResultProviderStatusCALLED:
+		return true
+	case NativeAgentResultProviderStatusNOTRUN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResult0Mode.
+const (
+	NativeAgentResult0ModeOFFLINE NativeAgentResult0Mode = "OFFLINE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResult0Mode enum.
+func (e NativeAgentResult0Mode) Valid() bool {
+	switch e {
+	case NativeAgentResult0ModeOFFLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResult0ModelUsed.
+const (
+	NativeAgentResult0ModelUsedFalse NativeAgentResult0ModelUsed = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResult0ModelUsed enum.
+func (e NativeAgentResult0ModelUsed) Valid() bool {
+	switch e {
+	case NativeAgentResult0ModelUsedFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResult0ProviderStatus.
+const (
+	NativeAgentResult0ProviderStatusNOTRUN NativeAgentResult0ProviderStatus = "NOT_RUN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResult0ProviderStatus enum.
+func (e NativeAgentResult0ProviderStatus) Valid() bool {
+	switch e {
+	case NativeAgentResult0ProviderStatusNOTRUN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResult1Mode.
+const (
+	NativeAgentResult1ModeMODEL NativeAgentResult1Mode = "MODEL"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResult1Mode enum.
+func (e NativeAgentResult1Mode) Valid() bool {
+	switch e {
+	case NativeAgentResult1ModeMODEL:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResult1ModelUsed.
+const (
+	NativeAgentResult1ModelUsedTrue NativeAgentResult1ModelUsed = true
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResult1ModelUsed enum.
+func (e NativeAgentResult1ModelUsed) Valid() bool {
+	switch e {
+	case NativeAgentResult1ModelUsedTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentResult1ProviderStatus.
+const (
+	NativeAgentResult1ProviderStatusCALLED NativeAgentResult1ProviderStatus = "CALLED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentResult1ProviderStatus enum.
+func (e NativeAgentResult1ProviderStatus) Valid() bool {
+	switch e {
+	case NativeAgentResult1ProviderStatusCALLED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatusAuthority.
+const (
+	NativeAgentStatusAuthorityFalse NativeAgentStatusAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatusAuthority enum.
+func (e NativeAgentStatusAuthority) Valid() bool {
+	switch e {
+	case NativeAgentStatusAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatusMode.
+const (
+	NativeAgentStatusModeMODELAVAILABLE NativeAgentStatusMode = "MODEL_AVAILABLE"
+	NativeAgentStatusModeOFFLINE        NativeAgentStatusMode = "OFFLINE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatusMode enum.
+func (e NativeAgentStatusMode) Valid() bool {
+	switch e {
+	case NativeAgentStatusModeMODELAVAILABLE:
+		return true
+	case NativeAgentStatusModeOFFLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatusProviderStatus.
+const (
+	NativeAgentStatusProviderStatusCONFIGUREDNOTVERIFIED NativeAgentStatusProviderStatus = "CONFIGURED_NOT_VERIFIED"
+	NativeAgentStatusProviderStatusNOTRUN                NativeAgentStatusProviderStatus = "NOT_RUN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatusProviderStatus enum.
+func (e NativeAgentStatusProviderStatus) Valid() bool {
+	switch e {
+	case NativeAgentStatusProviderStatusCONFIGUREDNOTVERIFIED:
+		return true
+	case NativeAgentStatusProviderStatusNOTRUN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatus0Mode.
+const (
+	NativeAgentStatus0ModeOFFLINE NativeAgentStatus0Mode = "OFFLINE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatus0Mode enum.
+func (e NativeAgentStatus0Mode) Valid() bool {
+	switch e {
+	case NativeAgentStatus0ModeOFFLINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatus0ProviderConfigured.
+const (
+	NativeAgentStatus0ProviderConfiguredFalse NativeAgentStatus0ProviderConfigured = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatus0ProviderConfigured enum.
+func (e NativeAgentStatus0ProviderConfigured) Valid() bool {
+	switch e {
+	case NativeAgentStatus0ProviderConfiguredFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatus0ProviderStatus.
+const (
+	NativeAgentStatus0ProviderStatusNOTRUN NativeAgentStatus0ProviderStatus = "NOT_RUN"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatus0ProviderStatus enum.
+func (e NativeAgentStatus0ProviderStatus) Valid() bool {
+	switch e {
+	case NativeAgentStatus0ProviderStatusNOTRUN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatus1Mode.
+const (
+	NativeAgentStatus1ModeMODELAVAILABLE NativeAgentStatus1Mode = "MODEL_AVAILABLE"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatus1Mode enum.
+func (e NativeAgentStatus1Mode) Valid() bool {
+	switch e {
+	case NativeAgentStatus1ModeMODELAVAILABLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatus1ProviderConfigured.
+const (
+	NativeAgentStatus1ProviderConfiguredTrue NativeAgentStatus1ProviderConfigured = true
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatus1ProviderConfigured enum.
+func (e NativeAgentStatus1ProviderConfigured) Valid() bool {
+	switch e {
+	case NativeAgentStatus1ProviderConfiguredTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentStatus1ProviderStatus.
+const (
+	NativeAgentStatus1ProviderStatusCONFIGUREDNOTVERIFIED NativeAgentStatus1ProviderStatus = "CONFIGURED_NOT_VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentStatus1ProviderStatus enum.
+func (e NativeAgentStatus1ProviderStatus) Valid() bool {
+	switch e {
+	case NativeAgentStatus1ProviderStatusCONFIGUREDNOTVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentTemplateCandidateBankAuthority.
+const (
+	NativeAgentTemplateCandidateBankAuthorityFalse NativeAgentTemplateCandidateBankAuthority = false
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentTemplateCandidateBankAuthority enum.
+func (e NativeAgentTemplateCandidateBankAuthority) Valid() bool {
+	switch e {
+	case NativeAgentTemplateCandidateBankAuthorityFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentTemplateCandidateMode.
+const (
+	NativeAgentTemplateCandidateModeIFUSERCONFIRMED NativeAgentTemplateCandidateMode = "IF_USER_CONFIRMED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentTemplateCandidateMode enum.
+func (e NativeAgentTemplateCandidateMode) Valid() bool {
+	switch e {
+	case NativeAgentTemplateCandidateModeIFUSERCONFIRMED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentTemplateCandidateRequiresUserConfirmation.
+const (
+	NativeAgentTemplateCandidateRequiresUserConfirmationTrue NativeAgentTemplateCandidateRequiresUserConfirmation = true
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentTemplateCandidateRequiresUserConfirmation enum.
+func (e NativeAgentTemplateCandidateRequiresUserConfirmation) Valid() bool {
+	switch e {
+	case NativeAgentTemplateCandidateRequiresUserConfirmationTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentTemplateCandidateState.
+const (
+	NativeAgentTemplateCandidateStateADVICEONLY                 NativeAgentTemplateCandidateState = "ADVICE_ONLY"
+	NativeAgentTemplateCandidateStateCOMPLETE                   NativeAgentTemplateCandidateState = "COMPLETE"
+	NativeAgentTemplateCandidateStateCONFIRMED                  NativeAgentTemplateCandidateState = "CONFIRMED"
+	NativeAgentTemplateCandidateStateCONSTRAINTSREADY           NativeAgentTemplateCandidateState = "CONSTRAINTS_READY"
+	NativeAgentTemplateCandidateStateDEADLINEBLOCKED            NativeAgentTemplateCandidateState = "DEADLINE_BLOCKED"
+	NativeAgentTemplateCandidateStateFLOORRELEASED              NativeAgentTemplateCandidateState = "FLOOR_RELEASED"
+	NativeAgentTemplateCandidateStateHARDGUARANTEESHORTFALL     NativeAgentTemplateCandidateState = "HARD_GUARANTEE_SHORTFALL"
+	NativeAgentTemplateCandidateStateINCOMPLETE                 NativeAgentTemplateCandidateState = "INCOMPLETE"
+	NativeAgentTemplateCandidateStateMINIMUMSHORTFALL           NativeAgentTemplateCandidateState = "MINIMUM_SHORTFALL"
+	NativeAgentTemplateCandidateStateMONTHLYMAXALREADYEXCEEDED  NativeAgentTemplateCandidateState = "MONTHLY_MAX_ALREADY_EXCEEDED"
+	NativeAgentTemplateCandidateStateNOACTION                   NativeAgentTemplateCandidateState = "NO_ACTION"
+	NativeAgentTemplateCandidateStateOUTOFAUTHORIZATION         NativeAgentTemplateCandidateState = "OUT_OF_AUTHORIZATION"
+	NativeAgentTemplateCandidateStateOVERDUEREADY               NativeAgentTemplateCandidateState = "OVERDUE_READY"
+	NativeAgentTemplateCandidateStatePARTIAL                    NativeAgentTemplateCandidateState = "PARTIAL"
+	NativeAgentTemplateCandidateStateREADY                      NativeAgentTemplateCandidateState = "READY"
+	NativeAgentTemplateCandidateStateSILENTSTABLEORDEDUPLICATED NativeAgentTemplateCandidateState = "SILENT_STABLE_OR_DEDUPLICATED"
+	NativeAgentTemplateCandidateStateUSERQUESTIONREQUIRED       NativeAgentTemplateCandidateState = "USER_QUESTION_REQUIRED"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentTemplateCandidateState enum.
+func (e NativeAgentTemplateCandidateState) Valid() bool {
+	switch e {
+	case NativeAgentTemplateCandidateStateADVICEONLY:
+		return true
+	case NativeAgentTemplateCandidateStateCOMPLETE:
+		return true
+	case NativeAgentTemplateCandidateStateCONFIRMED:
+		return true
+	case NativeAgentTemplateCandidateStateCONSTRAINTSREADY:
+		return true
+	case NativeAgentTemplateCandidateStateDEADLINEBLOCKED:
+		return true
+	case NativeAgentTemplateCandidateStateFLOORRELEASED:
+		return true
+	case NativeAgentTemplateCandidateStateHARDGUARANTEESHORTFALL:
+		return true
+	case NativeAgentTemplateCandidateStateINCOMPLETE:
+		return true
+	case NativeAgentTemplateCandidateStateMINIMUMSHORTFALL:
+		return true
+	case NativeAgentTemplateCandidateStateMONTHLYMAXALREADYEXCEEDED:
+		return true
+	case NativeAgentTemplateCandidateStateNOACTION:
+		return true
+	case NativeAgentTemplateCandidateStateOUTOFAUTHORIZATION:
+		return true
+	case NativeAgentTemplateCandidateStateOVERDUEREADY:
+		return true
+	case NativeAgentTemplateCandidateStatePARTIAL:
+		return true
+	case NativeAgentTemplateCandidateStateREADY:
+		return true
+	case NativeAgentTemplateCandidateStateSILENTSTABLEORDEDUPLICATED:
+		return true
+	case NativeAgentTemplateCandidateStateUSERQUESTIONREQUIRED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NativeAgentTemplateDescriptorTemplateName.
+const (
+	NativeAgentTemplateDescriptorTemplateNameAssetAuthorizationPolicy    NativeAgentTemplateDescriptorTemplateName = "AssetAuthorizationPolicy"
+	NativeAgentTemplateDescriptorTemplateNameCrossGoalReallocationPolicy NativeAgentTemplateDescriptorTemplateName = "CrossGoalReallocationPolicy"
+	NativeAgentTemplateDescriptorTemplateNameDatedExpensePolicy          NativeAgentTemplateDescriptorTemplateName = "DatedExpensePolicy"
+	NativeAgentTemplateDescriptorTemplateNameEmergencyBufferPolicy       NativeAgentTemplateDescriptorTemplateName = "EmergencyBufferPolicy"
+	NativeAgentTemplateDescriptorTemplateNameGoalAllocationPolicy        NativeAgentTemplateDescriptorTemplateName = "GoalAllocationPolicy"
+	NativeAgentTemplateDescriptorTemplateNameInterventionPolicy          NativeAgentTemplateDescriptorTemplateName = "InterventionPolicy"
+	NativeAgentTemplateDescriptorTemplateNameLivingReservePolicy         NativeAgentTemplateDescriptorTemplateName = "LivingReservePolicy"
+	NativeAgentTemplateDescriptorTemplateNameLongTermGoalPolicy          NativeAgentTemplateDescriptorTemplateName = "LongTermGoalPolicy"
+	NativeAgentTemplateDescriptorTemplateNamePeriodicTransferPolicy      NativeAgentTemplateDescriptorTemplateName = "PeriodicTransferPolicy"
+	NativeAgentTemplateDescriptorTemplateNameRecoveryPolicy              NativeAgentTemplateDescriptorTemplateName = "RecoveryPolicy"
+	NativeAgentTemplateDescriptorTemplateNameRecurringObligationPolicy   NativeAgentTemplateDescriptorTemplateName = "RecurringObligationPolicy"
+	NativeAgentTemplateDescriptorTemplateNameSeasonalReservePolicy       NativeAgentTemplateDescriptorTemplateName = "SeasonalReservePolicy"
+)
+
+// Valid indicates whether the value is a known member of the NativeAgentTemplateDescriptorTemplateName enum.
+func (e NativeAgentTemplateDescriptorTemplateName) Valid() bool {
+	switch e {
+	case NativeAgentTemplateDescriptorTemplateNameAssetAuthorizationPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameCrossGoalReallocationPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameDatedExpensePolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameEmergencyBufferPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameGoalAllocationPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameInterventionPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameLivingReservePolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameLongTermGoalPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNamePeriodicTransferPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameRecoveryPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameRecurringObligationPolicy:
+		return true
+	case NativeAgentTemplateDescriptorTemplateNameSeasonalReservePolicy:
 		return true
 	default:
 		return false
@@ -753,46 +2120,46 @@ func (e NativeAppTemplatePolicyPreviewBankAuthority) Valid() bool {
 
 // Defines values for NativeAppTemplatePolicyRequestTemplateName.
 const (
-	AssetAuthorizationPolicy    NativeAppTemplatePolicyRequestTemplateName = "AssetAuthorizationPolicy"
-	CrossGoalReallocationPolicy NativeAppTemplatePolicyRequestTemplateName = "CrossGoalReallocationPolicy"
-	DatedExpensePolicy          NativeAppTemplatePolicyRequestTemplateName = "DatedExpensePolicy"
-	EmergencyBufferPolicy       NativeAppTemplatePolicyRequestTemplateName = "EmergencyBufferPolicy"
-	GoalAllocationPolicy        NativeAppTemplatePolicyRequestTemplateName = "GoalAllocationPolicy"
-	InterventionPolicy          NativeAppTemplatePolicyRequestTemplateName = "InterventionPolicy"
-	LivingReservePolicy         NativeAppTemplatePolicyRequestTemplateName = "LivingReservePolicy"
-	LongTermGoalPolicy          NativeAppTemplatePolicyRequestTemplateName = "LongTermGoalPolicy"
-	PeriodicTransferPolicy      NativeAppTemplatePolicyRequestTemplateName = "PeriodicTransferPolicy"
-	RecoveryPolicy              NativeAppTemplatePolicyRequestTemplateName = "RecoveryPolicy"
-	RecurringObligationPolicy   NativeAppTemplatePolicyRequestTemplateName = "RecurringObligationPolicy"
-	SeasonalReservePolicy       NativeAppTemplatePolicyRequestTemplateName = "SeasonalReservePolicy"
+	NativeAppTemplatePolicyRequestTemplateNameAssetAuthorizationPolicy    NativeAppTemplatePolicyRequestTemplateName = "AssetAuthorizationPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameCrossGoalReallocationPolicy NativeAppTemplatePolicyRequestTemplateName = "CrossGoalReallocationPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameDatedExpensePolicy          NativeAppTemplatePolicyRequestTemplateName = "DatedExpensePolicy"
+	NativeAppTemplatePolicyRequestTemplateNameEmergencyBufferPolicy       NativeAppTemplatePolicyRequestTemplateName = "EmergencyBufferPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameGoalAllocationPolicy        NativeAppTemplatePolicyRequestTemplateName = "GoalAllocationPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameInterventionPolicy          NativeAppTemplatePolicyRequestTemplateName = "InterventionPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameLivingReservePolicy         NativeAppTemplatePolicyRequestTemplateName = "LivingReservePolicy"
+	NativeAppTemplatePolicyRequestTemplateNameLongTermGoalPolicy          NativeAppTemplatePolicyRequestTemplateName = "LongTermGoalPolicy"
+	NativeAppTemplatePolicyRequestTemplateNamePeriodicTransferPolicy      NativeAppTemplatePolicyRequestTemplateName = "PeriodicTransferPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameRecoveryPolicy              NativeAppTemplatePolicyRequestTemplateName = "RecoveryPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameRecurringObligationPolicy   NativeAppTemplatePolicyRequestTemplateName = "RecurringObligationPolicy"
+	NativeAppTemplatePolicyRequestTemplateNameSeasonalReservePolicy       NativeAppTemplatePolicyRequestTemplateName = "SeasonalReservePolicy"
 )
 
 // Valid indicates whether the value is a known member of the NativeAppTemplatePolicyRequestTemplateName enum.
 func (e NativeAppTemplatePolicyRequestTemplateName) Valid() bool {
 	switch e {
-	case AssetAuthorizationPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameAssetAuthorizationPolicy:
 		return true
-	case CrossGoalReallocationPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameCrossGoalReallocationPolicy:
 		return true
-	case DatedExpensePolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameDatedExpensePolicy:
 		return true
-	case EmergencyBufferPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameEmergencyBufferPolicy:
 		return true
-	case GoalAllocationPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameGoalAllocationPolicy:
 		return true
-	case InterventionPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameInterventionPolicy:
 		return true
-	case LivingReservePolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameLivingReservePolicy:
 		return true
-	case LongTermGoalPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameLongTermGoalPolicy:
 		return true
-	case PeriodicTransferPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNamePeriodicTransferPolicy:
 		return true
-	case RecoveryPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameRecoveryPolicy:
 		return true
-	case RecurringObligationPolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameRecurringObligationPolicy:
 		return true
-	case SeasonalReservePolicy:
+	case NativeAppTemplatePolicyRequestTemplateNameSeasonalReservePolicy:
 		return true
 	default:
 		return false
@@ -1479,220 +2846,53 @@ type ActivityPage struct {
 // ActivityPageVerificationScope defines model for ActivityPage.VerificationScope.
 type ActivityPageVerificationScope string
 
-// AgentBudget Worst-case reservation is charged before each provider call and never refunded based on self-reported usage. Real provider pricing and token transport bounds require separate verification.
-type AgentBudget struct {
-	ProviderCalls      int   `json:"provider_calls"`
-	ReservedCostMicros int64 `json:"reserved_cost_micros"`
-	ReservedTokens     int64 `json:"reserved_tokens"`
-	ToolCalls          int   `json:"tool_calls"`
-}
+// AgentBudget defines model for AgentBudget.
+type AgentBudget = NativeAgentBudget
 
-// AgentCandidate Navigates to the existing USER form. No model-provided amount, grant, confirmation, payment or prechecked consent exists.
-type AgentCandidate struct {
-	BankAuthority AgentCandidateBankAuthority `json:"bank_authority"`
-	GoalId        ID                          `json:"goal_id"`
-
-	// Reference SHA-256 of a closed current server projection. Collection IDs name the scoped user. This is display provenance, never execution authority.
-	Reference          AgentReference                   `json:"reference"`
-	RequiresUserFields AgentCandidateRequiresUserFields `json:"requires_user_fields"`
-	Template           AgentCandidateTemplate           `json:"template"`
-}
-
-// AgentCandidateBankAuthority defines model for AgentCandidate.BankAuthority.
-type AgentCandidateBankAuthority bool
-
-// AgentCandidateRequiresUserFields defines model for AgentCandidate.RequiresUserFields.
-type AgentCandidateRequiresUserFields bool
-
-// AgentCandidateTemplate defines model for AgentCandidate.Template.
-type AgentCandidateTemplate string
+// AgentCandidate defines model for AgentCandidate.
+type AgentCandidate = NativeAgentCandidate
 
 // AgentEmptyTool defines model for AgentEmptyTool.
-type AgentEmptyTool struct {
-	Arguments map[string]interface{} `json:"arguments"`
-	Name      AgentEmptyToolName     `json:"name"`
-}
-
-// AgentEmptyToolName defines model for AgentEmptyTool.Name.
-type AgentEmptyToolName string
+type AgentEmptyTool = NativeAgentEmptyTool
 
 // AgentGoalTool defines model for AgentGoalTool.
-type AgentGoalTool struct {
-	Arguments struct {
-		GoalId ID `json:"goal_id"`
-	} `json:"arguments"`
-	Name AgentGoalToolName `json:"name"`
-}
-
-// AgentGoalToolName defines model for AgentGoalTool.Name.
-type AgentGoalToolName string
+type AgentGoalTool = NativeAgentGoalTool
 
 // AgentGrantView defines model for AgentGrantView.
-type AgentGrantView struct {
-	Id ID `json:"id"`
-
-	// MaxAmount Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
-	//
-	// Example: 10000
-	MaxAmount  Money                `json:"max_amount"`
-	PolicyId   ID                   `json:"policy_id"`
-	Status     AgentGrantViewStatus `json:"status"`
-	ValidUntil Timestamp            `json:"valid_until"`
-}
-
-// AgentGrantViewStatus defines model for AgentGrantView.Status.
-type AgentGrantViewStatus string
+type AgentGrantView = NativeAgentGrant
 
 // AgentModelTurn defines model for AgentModelTurn.
-type AgentModelTurn struct {
-	Mode AgentModelTurnMode `json:"mode"`
-
-	// Text Additional server bound is 4096 UTF-8 bytes
-	Text string `json:"text"`
-}
-
-// AgentModelTurnMode defines model for AgentModelTurn.Mode.
-type AgentModelTurnMode string
+type AgentModelTurn = NativeAgentModelTurn
 
 // AgentObservation defines model for AgentObservation.
-type AgentObservation struct {
-	Accounts *[]Account `json:"accounts,omitempty"`
-	AsOf     Timestamp  `json:"as_of"`
-
-	// Candidate Navigates to the existing USER form. No model-provided amount, grant, confirmation, payment or prechecked consent exists.
-	Candidate         *AgentCandidate                   `json:"candidate,omitempty"`
-	Goals             *[]Goal                           `json:"goals,omitempty"`
-	Grants            *[]AgentGrantView                 `json:"grants,omitempty"`
-	Operations        *[]AgentOperationView             `json:"operations,omitempty"`
-	Policies          *[]AgentPolicyView                `json:"policies,omitempty"`
-	References        []AgentReference                  `json:"references"`
-	Summary           string                            `json:"summary"`
-	Tool              AgentObservationTool              `json:"tool"`
-	VerificationScope AgentObservationVerificationScope `json:"verification_scope"`
-}
-
-// AgentObservationTool defines model for AgentObservation.Tool.
-type AgentObservationTool string
-
-// AgentObservationVerificationScope defines model for AgentObservation.VerificationScope.
-type AgentObservationVerificationScope string
+type AgentObservation = NativeAgentObservation
 
 // AgentOfflineTurn defines model for AgentOfflineTurn.
-type AgentOfflineTurn struct {
-	Mode AgentOfflineTurnMode `json:"mode"`
-	Tool json.RawMessage      `json:"tool"`
-}
-
-// AgentOfflineTurnMode defines model for AgentOfflineTurn.Mode.
-type AgentOfflineTurnMode string
+type AgentOfflineTurn = NativeAgentOfflineTurn
 
 // AgentOperationTool defines model for AgentOperationTool.
-type AgentOperationTool struct {
-	Arguments struct {
-		OperationId ID `json:"operation_id"`
-	} `json:"arguments"`
-	Name AgentOperationToolName `json:"name"`
-}
-
-// AgentOperationToolName defines model for AgentOperationTool.Name.
-type AgentOperationToolName string
+type AgentOperationTool = NativeAgentOperationTool
 
 // AgentOperationView defines model for AgentOperationView.
-type AgentOperationView struct {
-	// AmountCents Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
-	//
-	// Example: 10000
-	AmountCents        Money          `json:"amount_cents"`
-	BankObservedStatus *string        `json:"bank_observed_status,omitempty"`
-	Id                 ID             `json:"id"`
-	PlanId             ID             `json:"plan_id"`
-	ProcessingHealth   string         `json:"processing_health"`
-	ReceiptId          *ID            `json:"receipt_id,omitempty"`
-	State              OperationState `json:"state"`
-	Version            Version        `json:"version"`
-}
+type AgentOperationView = NativeAgentOperation
 
 // AgentPolicyView defines model for AgentPolicyView.
-type AgentPolicyView struct {
-	GoalId ID `json:"goal_id"`
-	Id     ID `json:"id"`
+type AgentPolicyView = NativeAgentPolicy
 
-	// MaxAmount Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
-	//
-	// Example: 10000
-	MaxAmount  Money                 `json:"max_amount"`
-	Status     AgentPolicyViewStatus `json:"status"`
-	ValidUntil Timestamp             `json:"valid_until"`
-	Version    Version               `json:"version"`
-}
+// AgentProviderUsage Validated returned replies only, never independent invoice verification. Reserved calls/cost are not refunded for unknown failed attempts.
+type AgentProviderUsage = NativeAgentProviderUsage
 
-// AgentPolicyViewStatus defines model for AgentPolicyView.Status.
-type AgentPolicyViewStatus string
-
-// AgentProviderUsage Aggregate valid provider-reported usage, separate from worst-case Budget reservations. This is not independent invoice verification. OFFLINE reports zero calls and tokens.
-type AgentProviderUsage struct {
-	InputTokens   int64 `json:"input_tokens"`
-	OutputTokens  int64 `json:"output_tokens"`
-	ReportedCalls int   `json:"reported_calls"`
-}
-
-// AgentReference SHA-256 of a closed current server projection. Collection IDs name the scoped user. This is display provenance, never execution authority.
-type AgentReference struct {
-	Digest Digest             `json:"digest"`
-	Id     ID                 `json:"id"`
-	Kind   AgentReferenceKind `json:"kind"`
-}
-
-// AgentReferenceKind defines model for AgentReference.Kind.
-type AgentReferenceKind string
+// AgentReference defines model for AgentReference.
+type AgentReference = NativeAgentReference
 
 // AgentResult defines model for AgentResult.
-type AgentResult struct {
-	Authority AgentResultAuthority `json:"authority"`
-
-	// Budget Worst-case reservation is charged before each provider call and never refunded based on self-reported usage. Real provider pricing and token transport bounds require separate verification.
-	Budget AgentBudget `json:"budget"`
-
-	// Candidate Navigates to the existing USER form. No model-provided amount, grant, confirmation, payment or prechecked consent exists.
-	Candidate      *AgentCandidate           `json:"candidate,omitempty"`
-	Mode           AgentResultMode           `json:"mode"`
-	ModelUsed      bool                      `json:"model_used"`
-	Observations   []AgentObservation        `json:"observations"`
-	ProviderStatus AgentResultProviderStatus `json:"provider_status"`
-
-	// ProviderUsage Aggregate valid provider-reported usage, separate from worst-case Budget reservations. This is not independent invoice verification. OFFLINE reports zero calls and tokens.
-	ProviderUsage AgentProviderUsage `json:"provider_usage"`
-	References    []AgentReference   `json:"references"`
-}
-
-// AgentResultAuthority defines model for AgentResult.Authority.
-type AgentResultAuthority bool
-
-// AgentResultMode defines model for AgentResult.Mode.
-type AgentResultMode string
-
-// AgentResultProviderStatus defines model for AgentResult.ProviderStatus.
-type AgentResultProviderStatus string
+type AgentResult = NativeAgentResult
 
 // AgentStatus defines model for AgentStatus.
-type AgentStatus struct {
-	Authority          AgentStatusAuthority      `json:"authority"`
-	Mode               AgentStatusMode           `json:"mode"`
-	ProviderConfigured bool                      `json:"provider_configured"`
-	ProviderStatus     AgentStatusProviderStatus `json:"provider_status"`
-}
+type AgentStatus = NativeAgentStatus
 
-// AgentStatusAuthority defines model for AgentStatus.Authority.
-type AgentStatusAuthority bool
-
-// AgentStatusMode defines model for AgentStatus.Mode.
-type AgentStatusMode string
-
-// AgentStatusProviderStatus defines model for AgentStatus.ProviderStatus.
-type AgentStatusProviderStatus string
-
-// AgentTurn Maximum raw request 8192 UTF-8 bytes; no environment, user, authorization, amount or arbitrary URL fields.
-type AgentTurn = json.RawMessage
+// AgentTurn Authenticated scope only. OFFLINE has exactly one registered closed tool; MODEL has only bounded text. No USER authority is accepted. Native grant tools/references/data are OFFLINE-only and never sent to a provider.
+type AgentTurn = NativeAgentTurn
 
 // ApiError defines model for ApiError.
 type ApiError struct {
@@ -2001,6 +3201,651 @@ type NativeAdaptersPostgresNativeReturnLocation struct {
 	// Example: 10000
 	Reserved Money `json:"Reserved"`
 }
+
+// NativeAgentAccount defines model for NativeAgentAccount.
+type NativeAgentAccount struct {
+	// BalanceCents Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	BalanceCents Money `json:"balance_cents"`
+
+	// GoalOwnedCents Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	GoalOwnedCents Money  `json:"goal_owned_cents"`
+	Id             ID     `json:"id"`
+	Name           string `json:"name"`
+}
+
+// NativeAgentBudget defines model for NativeAgentBudget.
+type NativeAgentBudget struct {
+	ProviderCalls      int   `json:"provider_calls"`
+	ReservedCostMicros int64 `json:"reserved_cost_micros"`
+	ReservedTokens     int64 `json:"reserved_tokens"`
+	ToolCalls          int   `json:"tool_calls"`
+}
+
+// NativeAgentCandidate defines model for NativeAgentCandidate.
+type NativeAgentCandidate struct {
+	BankAuthority      NativeAgentCandidateBankAuthority      `json:"bank_authority"`
+	GoalId             ID                                     `json:"goal_id"`
+	Reference          NativeAgentReference                   `json:"reference"`
+	RequiresUserFields NativeAgentCandidateRequiresUserFields `json:"requires_user_fields"`
+	Template           NativeAgentCandidateTemplate           `json:"template"`
+}
+
+// NativeAgentCandidateBankAuthority defines model for NativeAgentCandidate.BankAuthority.
+type NativeAgentCandidateBankAuthority bool
+
+// NativeAgentCandidateRequiresUserFields defines model for NativeAgentCandidate.RequiresUserFields.
+type NativeAgentCandidateRequiresUserFields bool
+
+// NativeAgentCandidateTemplate defines model for NativeAgentCandidate.Template.
+type NativeAgentCandidateTemplate string
+
+// NativeAgentEmptyTool defines model for NativeAgentEmptyTool.
+type NativeAgentEmptyTool = json.RawMessage
+
+// NativeAgentError defines model for NativeAgentError.
+type NativeAgentError struct {
+	Code NativeAgentErrorCode `json:"code"`
+
+	// Details Finite safe failure stage and validated counters only. No raw error, SQL, provider body, object IDs, connection values or secret. Reserved calls do not prove requests arrived; missing usage remains unknown, not free.
+	Details     NativeAgentFailureDetails  `json:"details"`
+	Message     string                     `json:"message"`
+	OperationId *string                    `json:"operation_id"`
+	RequestId   string                     `json:"request_id"`
+	RetryClass  NativeAgentErrorRetryClass `json:"retry_class"`
+}
+
+// NativeAgentErrorCode defines model for NativeAgentError.Code.
+type NativeAgentErrorCode string
+
+// NativeAgentErrorRetryClass defines model for NativeAgentError.RetryClass.
+type NativeAgentErrorRetryClass string
+
+// NativeAgentFailureDetails Finite safe failure stage and validated counters only. No raw error, SQL, provider body, object IDs, connection values or secret. Reserved calls do not prove requests arrived; missing usage remains unknown, not free.
+type NativeAgentFailureDetails struct {
+	FailureProtocol        NativeAgentFailureDetailsFailureProtocol `json:"failure_protocol"`
+	FailureReason          NativeAgentFailureDetailsFailureReason   `json:"failure_reason"`
+	FailureStage           NativeAgentFailureDetailsFailureStage    `json:"failure_stage"`
+	ProviderCallsReserved  string                                   `json:"provider_calls_reserved"`
+	ReservedCostMicros     string                                   `json:"reserved_cost_micros"`
+	ReservedTokens         string                                   `json:"reserved_tokens"`
+	ToolCallsConsumed      string                                   `json:"tool_calls_consumed"`
+	UsageScope             NativeAgentFailureDetailsUsageScope      `json:"usage_scope"`
+	ValidatedInputTokens   string                                   `json:"validated_input_tokens"`
+	ValidatedOutputTokens  string                                   `json:"validated_output_tokens"`
+	ValidatedReportedCalls string                                   `json:"validated_reported_calls"`
+}
+
+// NativeAgentFailureDetailsFailureProtocol defines model for NativeAgentFailureDetails.FailureProtocol.
+type NativeAgentFailureDetailsFailureProtocol string
+
+// NativeAgentFailureDetailsFailureReason defines model for NativeAgentFailureDetails.FailureReason.
+type NativeAgentFailureDetailsFailureReason string
+
+// NativeAgentFailureDetailsFailureStage defines model for NativeAgentFailureDetails.FailureStage.
+type NativeAgentFailureDetailsFailureStage string
+
+// NativeAgentFailureDetailsUsageScope defines model for NativeAgentFailureDetails.UsageScope.
+type NativeAgentFailureDetailsUsageScope string
+
+// NativeAgentForecastObservation defines model for NativeAgentForecastObservation.
+type NativeAgentForecastObservation struct {
+	BankAuthority NativeAgentForecastObservationBankAuthority `json:"bank_authority"`
+	Reasons       []string                                    `json:"reasons"`
+	Result        *NativePlanningForecastResult               `json:"result,omitempty"`
+	State         NativeAgentForecastObservationState         `json:"state"`
+}
+
+// NativeAgentForecastObservationBankAuthority defines model for NativeAgentForecastObservation.BankAuthority.
+type NativeAgentForecastObservationBankAuthority bool
+
+// NativeAgentForecastObservationState defines model for NativeAgentForecastObservation.State.
+type NativeAgentForecastObservationState string
+
+// NativeAgentGoal defines model for NativeAgentGoal.
+type NativeAgentGoal struct {
+	AccountId ID `json:"account_id"`
+
+	// AssignedCents Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	AssignedCents Money  `json:"assigned_cents"`
+	Id            ID     `json:"id"`
+	Name          string `json:"name"`
+
+	// TargetCents Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	TargetCents Money `json:"target_cents"`
+}
+
+// NativeAgentGoalTool defines model for NativeAgentGoalTool.
+type NativeAgentGoalTool = json.RawMessage
+
+// NativeAgentGrant defines model for NativeAgentGrant.
+type NativeAgentGrant struct {
+	Id ID `json:"id"`
+
+	// MaxAmount Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	MaxAmount  Money                  `json:"max_amount"`
+	PolicyId   ID                     `json:"policy_id"`
+	Status     NativeAgentGrantStatus `json:"status"`
+	ValidUntil Timestamp              `json:"valid_until"`
+}
+
+// NativeAgentGrantStatus defines model for NativeAgentGrant.Status.
+type NativeAgentGrantStatus string
+
+// NativeAgentGrantCap Positive integer cents at most funds.MaxMoneyCents (9000000000000000); reviewed limit, never executable cash.
+type NativeAgentGrantCap = string
+
+// NativeAgentGrantReason defines model for NativeAgentGrantReason.
+type NativeAgentGrantReason string
+
+// NativeAgentJointObservation defines model for NativeAgentJointObservation.
+type NativeAgentJointObservation struct {
+	BankAuthority NativeAgentJointObservationBankAuthority `json:"bank_authority"`
+	Mode          NativeAgentJointObservationMode          `json:"mode"`
+	Reasons       []string                                 `json:"reasons"`
+	Result        *NativePlanningJointPlan                 `json:"result,omitempty"`
+	State         NativeAgentJointObservationState         `json:"state"`
+}
+
+// NativeAgentJointObservationBankAuthority defines model for NativeAgentJointObservation.BankAuthority.
+type NativeAgentJointObservationBankAuthority bool
+
+// NativeAgentJointObservationMode defines model for NativeAgentJointObservation.Mode.
+type NativeAgentJointObservationMode string
+
+// NativeAgentJointObservationState defines model for NativeAgentJointObservation.State.
+type NativeAgentJointObservationState string
+
+// NativeAgentModelCandidate defines model for NativeAgentModelCandidate.
+type NativeAgentModelCandidate struct {
+	BankAuthority      NativeAgentModelCandidateBankAuthority      `json:"bank_authority"`
+	GoalId             ID                                          `json:"goal_id"`
+	Reference          NativeAgentModelReference                   `json:"reference"`
+	RequiresUserFields NativeAgentModelCandidateRequiresUserFields `json:"requires_user_fields"`
+	Template           NativeAgentModelCandidateTemplate           `json:"template"`
+}
+
+// NativeAgentModelCandidateBankAuthority defines model for NativeAgentModelCandidate.BankAuthority.
+type NativeAgentModelCandidateBankAuthority bool
+
+// NativeAgentModelCandidateRequiresUserFields defines model for NativeAgentModelCandidate.RequiresUserFields.
+type NativeAgentModelCandidateRequiresUserFields bool
+
+// NativeAgentModelCandidateTemplate defines model for NativeAgentModelCandidate.Template.
+type NativeAgentModelCandidateTemplate string
+
+// NativeAgentModelObservation defines model for NativeAgentModelObservation.
+type NativeAgentModelObservation struct {
+	Accounts          *[]NativeAgentAccount                        `json:"accounts,omitempty"`
+	AsOf              Timestamp                                    `json:"as_of"`
+	Candidate         *NativeAgentModelCandidate                   `json:"candidate,omitempty"`
+	Catalog           *[]NativeAgentTemplateDescriptor             `json:"catalog,omitempty"`
+	Forecast          *NativeAgentForecastObservation              `json:"forecast,omitempty"`
+	Goals             *[]NativeAgentGoal                           `json:"goals,omitempty"`
+	Grants            *[]NativeAgentGrant                          `json:"grants,omitempty"`
+	Joint             *NativeAgentJointObservation                 `json:"joint,omitempty"`
+	NativeCandidate   *NativeAgentModelTemplateCandidate           `json:"native_candidate,omitempty"`
+	NativeRules       *[]NativeAgentNativeRule                     `json:"native_rules,omitempty"`
+	Object            *NativeAgentObjectObservation                `json:"object,omitempty"`
+	Objects           *[]NativeAgentObjectObservation              `json:"objects,omitempty"`
+	Operations        *[]NativeAgentOperation                      `json:"operations,omitempty"`
+	Policies          *[]NativeAgentPolicy                         `json:"policies,omitempty"`
+	References        []NativeAgentModelReference                  `json:"references"`
+	Summary           string                                       `json:"summary"`
+	Tool              NativeAgentModelObservationTool              `json:"tool"`
+	VerificationScope NativeAgentModelObservationVerificationScope `json:"verification_scope"`
+}
+
+// NativeAgentModelObservationTool defines model for NativeAgentModelObservation.Tool.
+type NativeAgentModelObservationTool string
+
+// NativeAgentModelObservationVerificationScope defines model for NativeAgentModelObservation.VerificationScope.
+type NativeAgentModelObservationVerificationScope string
+
+// NativeAgentModelReference defines model for NativeAgentModelReference.
+type NativeAgentModelReference struct {
+	Digest Digest                        `json:"digest"`
+	Id     ID                            `json:"id"`
+	Kind   NativeAgentModelReferenceKind `json:"kind"`
+}
+
+// NativeAgentModelReferenceKind defines model for NativeAgentModelReference.Kind.
+type NativeAgentModelReferenceKind string
+
+// NativeAgentModelTemplateCandidate defines model for NativeAgentModelTemplateCandidate.
+type NativeAgentModelTemplateCandidate struct {
+	BankAuthority            NativeAgentModelTemplateCandidateBankAuthority            `json:"bank_authority"`
+	Compiled                 NativePolicyCompiledTemplate                              `json:"compiled"`
+	Forecast                 *NativePlanningForecastResult                             `json:"forecast,omitempty"`
+	GoalId                   *ID                                                       `json:"goal_id,omitempty"`
+	Mode                     NativeAgentModelTemplateCandidateMode                     `json:"mode"`
+	PolicyId                 *ID                                                       `json:"policy_id,omitempty"`
+	Preview                  *NativePolicyTemplatePreview                              `json:"preview,omitempty"`
+	Reasons                  []string                                                  `json:"reasons"`
+	Reference                NativeAgentModelReference                                 `json:"reference"`
+	RequiresUserConfirmation NativeAgentModelTemplateCandidateRequiresUserConfirmation `json:"requires_user_confirmation"`
+	State                    NativeAgentModelTemplateCandidateState                    `json:"state"`
+}
+
+// NativeAgentModelTemplateCandidateBankAuthority defines model for NativeAgentModelTemplateCandidate.BankAuthority.
+type NativeAgentModelTemplateCandidateBankAuthority bool
+
+// NativeAgentModelTemplateCandidateMode defines model for NativeAgentModelTemplateCandidate.Mode.
+type NativeAgentModelTemplateCandidateMode string
+
+// NativeAgentModelTemplateCandidateRequiresUserConfirmation defines model for NativeAgentModelTemplateCandidate.RequiresUserConfirmation.
+type NativeAgentModelTemplateCandidateRequiresUserConfirmation bool
+
+// NativeAgentModelTemplateCandidateState defines model for NativeAgentModelTemplateCandidate.State.
+type NativeAgentModelTemplateCandidateState string
+
+// NativeAgentModelTurn defines model for NativeAgentModelTurn.
+type NativeAgentModelTurn struct {
+	Mode NativeAgentModelTurnMode `json:"mode"`
+	Text string                   `json:"text"`
+}
+
+// NativeAgentModelTurnMode defines model for NativeAgentModelTurn.Mode.
+type NativeAgentModelTurnMode string
+
+// NativeAgentNativeGrantCollection OFFLINE only. COMPLETE count equals all sorted owned items; UNAVAILABLE omits count, never reports unknown as zero. Historical session scope is explicit and is not current execution authority.
+type NativeAgentNativeGrantCollection struct {
+	Authority           NativeAgentNativeGrantCollectionAuthority           `json:"authority"`
+	BankAuthority       NativeAgentNativeGrantCollectionBankAuthority       `json:"bank_authority"`
+	CollectionDigest    Digest                                              `json:"collection_digest"`
+	Count               *int                                                `json:"count,omitempty"`
+	Items               []NativeAgentNativeGrantDisplay                     `json:"items"`
+	Protocol            NativeAgentNativeGrantCollectionProtocol            `json:"protocol"`
+	ReasonCodes         []NativeAgentGrantReason                            `json:"reason_codes"`
+	SessionVerification NativeAgentNativeGrantCollectionSessionVerification `json:"session_verification"`
+	Status              NativeAgentNativeGrantCollectionStatus              `json:"status"`
+	VerificationScope   NativeAgentNativeGrantCollectionVerificationScope   `json:"verification_scope"`
+	union               json.RawMessage
+}
+
+// NativeAgentNativeGrantCollectionAuthority defines model for NativeAgentNativeGrantCollection.Authority.
+type NativeAgentNativeGrantCollectionAuthority bool
+
+// NativeAgentNativeGrantCollectionBankAuthority defines model for NativeAgentNativeGrantCollection.BankAuthority.
+type NativeAgentNativeGrantCollectionBankAuthority bool
+
+// NativeAgentNativeGrantCollectionProtocol defines model for NativeAgentNativeGrantCollection.Protocol.
+type NativeAgentNativeGrantCollectionProtocol string
+
+// NativeAgentNativeGrantCollectionSessionVerification defines model for NativeAgentNativeGrantCollection.SessionVerification.
+type NativeAgentNativeGrantCollectionSessionVerification string
+
+// NativeAgentNativeGrantCollectionStatus defines model for NativeAgentNativeGrantCollection.Status.
+type NativeAgentNativeGrantCollectionStatus string
+
+// NativeAgentNativeGrantCollectionVerificationScope defines model for NativeAgentNativeGrantCollection.VerificationScope.
+type NativeAgentNativeGrantCollectionVerificationScope string
+
+// NativeAgentNativeGrantCollection0 defines model for NativeAgentNativeGrantCollection.0.
+type NativeAgentNativeGrantCollection0 struct {
+	ReasonCodes         interface{}                                           `json:"reason_codes,omitempty"`
+	SessionVerification *NativeAgentNativeGrantCollection0SessionVerification `json:"session_verification,omitempty"`
+	Status              *NativeAgentNativeGrantCollection0Status              `json:"status,omitempty"`
+	VerificationScope   *NativeAgentNativeGrantCollection0VerificationScope   `json:"verification_scope,omitempty"`
+}
+
+// NativeAgentNativeGrantCollection0SessionVerification defines model for NativeAgentNativeGrantCollection.0.SessionVerification.
+type NativeAgentNativeGrantCollection0SessionVerification string
+
+// NativeAgentNativeGrantCollection0Status defines model for NativeAgentNativeGrantCollection.0.Status.
+type NativeAgentNativeGrantCollection0Status string
+
+// NativeAgentNativeGrantCollection0VerificationScope defines model for NativeAgentNativeGrantCollection.0.VerificationScope.
+type NativeAgentNativeGrantCollection0VerificationScope string
+
+// NativeAgentNativeGrantCollection1 defines model for NativeAgentNativeGrantCollection.1.
+type NativeAgentNativeGrantCollection1 struct {
+	Items               interface{}                                           `json:"items,omitempty"`
+	ReasonCodes         interface{}                                           `json:"reason_codes,omitempty"`
+	SessionVerification *NativeAgentNativeGrantCollection1SessionVerification `json:"session_verification,omitempty"`
+	Status              *NativeAgentNativeGrantCollection1Status              `json:"status,omitempty"`
+	VerificationScope   *NativeAgentNativeGrantCollection1VerificationScope   `json:"verification_scope,omitempty"`
+}
+
+// NativeAgentNativeGrantCollection1SessionVerification defines model for NativeAgentNativeGrantCollection.1.SessionVerification.
+type NativeAgentNativeGrantCollection1SessionVerification string
+
+// NativeAgentNativeGrantCollection1Status defines model for NativeAgentNativeGrantCollection.1.Status.
+type NativeAgentNativeGrantCollection1Status string
+
+// NativeAgentNativeGrantCollection1VerificationScope defines model for NativeAgentNativeGrantCollection.1.VerificationScope.
+type NativeAgentNativeGrantCollection1VerificationScope string
+
+// NativeAgentNativeGrantDisplay OFFLINE only. Original caps and complete lifecycle display, not authority. Sorted unique lists, family policy/scope, cap ordering, same-state reasons, expiry/day and original chain are checked by the domain; schema validation does not replace those checks. No session, grant raw bytes, signature or executable budget is exposed.
+type NativeAgentNativeGrantDisplay struct {
+	AccountIds         []ID                                        `json:"account_ids"`
+	Authority          NativeAgentNativeGrantDisplayAuthority      `json:"authority"`
+	BankAuthority      NativeAgentNativeGrantDisplayBankAuthority  `json:"bank_authority"`
+	ChainDigest        Digest                                      `json:"chain_digest"`
+	EffectiveFrom      Timestamp                                   `json:"effective_from"`
+	EffectiveState     NativeAgentNativeGrantDisplayEffectiveState `json:"effective_state"`
+	EvaluatedLocalDate openapi_types.Date                          `json:"evaluated_local_date"`
+	ExpiresAt          Timestamp                                   `json:"expires_at"`
+	Family             NativeAgentNativeGrantDisplayFamily         `json:"family"`
+	GoalIds            []ID                                        `json:"goal_ids"`
+	Id                 ID                                          `json:"id"`
+
+	// LifetimeCapCents Positive integer cents at most funds.MaxMoneyCents (9000000000000000); reviewed limit, never executable cash.
+	LifetimeCapCents NativeAgentGrantCap `json:"lifetime_cap_cents"`
+
+	// MonthlyCapCents Positive integer cents at most funds.MaxMoneyCents (9000000000000000); reviewed limit, never executable cash.
+	MonthlyCapCents  NativeAgentGrantCap                        `json:"monthly_cap_cents"`
+	OriginalDigest   Digest                                     `json:"original_digest"`
+	PayeeIds         []string                                   `json:"payee_ids"`
+	PolicyReferences []NativePolicyNativePolicyReference        `json:"policy_references"`
+	ProductIds       []string                                   `json:"product_ids"`
+	ReasonCodes      []NativeAgentGrantReason                   `json:"reason_codes"`
+	RecordedState    NativeAgentNativeGrantDisplayRecordedState `json:"recorded_state"`
+
+	// SingleCapCents Positive integer cents at most funds.MaxMoneyCents (9000000000000000); reviewed limit, never executable cash.
+	SingleCapCents NativeAgentGrantCap                  `json:"single_cap_cents"`
+	StateAt        Timestamp                            `json:"state_at"`
+	StateSequence  int                                  `json:"state_sequence"`
+	TermsDigest    Digest                               `json:"terms_digest"`
+	Timezone       string                               `json:"timezone"`
+	Version        NativeAgentNativeGrantDisplayVersion `json:"version"`
+}
+
+// NativeAgentNativeGrantDisplayAuthority defines model for NativeAgentNativeGrantDisplay.Authority.
+type NativeAgentNativeGrantDisplayAuthority bool
+
+// NativeAgentNativeGrantDisplayBankAuthority defines model for NativeAgentNativeGrantDisplay.BankAuthority.
+type NativeAgentNativeGrantDisplayBankAuthority bool
+
+// NativeAgentNativeGrantDisplayEffectiveState defines model for NativeAgentNativeGrantDisplay.EffectiveState.
+type NativeAgentNativeGrantDisplayEffectiveState string
+
+// NativeAgentNativeGrantDisplayFamily defines model for NativeAgentNativeGrantDisplay.Family.
+type NativeAgentNativeGrantDisplayFamily string
+
+// NativeAgentNativeGrantDisplayRecordedState defines model for NativeAgentNativeGrantDisplay.RecordedState.
+type NativeAgentNativeGrantDisplayRecordedState string
+
+// NativeAgentNativeGrantDisplayVersion defines model for NativeAgentNativeGrantDisplay.Version.
+type NativeAgentNativeGrantDisplayVersion int
+
+// NativeAgentNativeRule defines model for NativeAgentNativeRule.
+type NativeAgentNativeRule struct {
+	EffectiveState NativeAgentNativeRuleEffectiveState `json:"effective_state"`
+	GoalId         *ID                                 `json:"goal_id,omitempty"`
+	Timezone       string                              `json:"timezone"`
+	Version        NativePolicyTemplateVersion         `json:"version"`
+}
+
+// NativeAgentNativeRuleEffectiveState defines model for NativeAgentNativeRule.EffectiveState.
+type NativeAgentNativeRuleEffectiveState string
+
+// NativeAgentObjectObservation defines model for NativeAgentObjectObservation.
+type NativeAgentObjectObservation struct {
+	Data map[string]interface{}           `json:"data"`
+	Id   ID                               `json:"id"`
+	Kind NativeAgentObjectObservationKind `json:"kind"`
+}
+
+// NativeAgentObjectObservationKind defines model for NativeAgentObjectObservation.Kind.
+type NativeAgentObjectObservationKind string
+
+// NativeAgentObservation defines model for NativeAgentObservation.
+type NativeAgentObservation struct {
+	Accounts          *[]NativeAgentAccount                   `json:"accounts,omitempty"`
+	AsOf              Timestamp                               `json:"as_of"`
+	Candidate         *NativeAgentCandidate                   `json:"candidate,omitempty"`
+	Catalog           *[]NativeAgentTemplateDescriptor        `json:"catalog,omitempty"`
+	Forecast          *NativeAgentForecastObservation         `json:"forecast,omitempty"`
+	Goals             *[]NativeAgentGoal                      `json:"goals,omitempty"`
+	Grants            *[]NativeAgentGrant                     `json:"grants,omitempty"`
+	Joint             *NativeAgentJointObservation            `json:"joint,omitempty"`
+	NativeCandidate   *NativeAgentTemplateCandidate           `json:"native_candidate,omitempty"`
+	NativeGrant       *NativeAgentNativeGrantDisplay          `json:"native_grant,omitempty"`
+	NativeGrants      *NativeAgentNativeGrantCollection       `json:"native_grants,omitempty"`
+	NativeRules       *[]NativeAgentNativeRule                `json:"native_rules,omitempty"`
+	Object            *NativeAgentObjectObservation           `json:"object,omitempty"`
+	Objects           *[]NativeAgentObjectObservation         `json:"objects,omitempty"`
+	Operations        *[]NativeAgentOperation                 `json:"operations,omitempty"`
+	Policies          *[]NativeAgentPolicy                    `json:"policies,omitempty"`
+	References        []NativeAgentReference                  `json:"references"`
+	Summary           string                                  `json:"summary"`
+	Tool              NativeAgentObservationTool              `json:"tool"`
+	VerificationScope NativeAgentObservationVerificationScope `json:"verification_scope"`
+}
+
+// NativeAgentObservationTool defines model for NativeAgentObservation.Tool.
+type NativeAgentObservationTool string
+
+// NativeAgentObservationVerificationScope defines model for NativeAgentObservation.VerificationScope.
+type NativeAgentObservationVerificationScope string
+
+// NativeAgentOfflineTurn defines model for NativeAgentOfflineTurn.
+type NativeAgentOfflineTurn struct {
+	Mode NativeAgentOfflineTurnMode `json:"mode"`
+	Tool NativeAgentToolCall        `json:"tool"`
+}
+
+// NativeAgentOfflineTurnMode defines model for NativeAgentOfflineTurn.Mode.
+type NativeAgentOfflineTurnMode string
+
+// NativeAgentOperation defines model for NativeAgentOperation.
+type NativeAgentOperation struct {
+	// AmountCents Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	AmountCents        Money          `json:"amount_cents"`
+	BankObservedStatus *string        `json:"bank_observed_status,omitempty"`
+	Id                 ID             `json:"id"`
+	PlanId             ID             `json:"plan_id"`
+	ProcessingHealth   string         `json:"processing_health"`
+	ReceiptId          *ID            `json:"receipt_id,omitempty"`
+	State              OperationState `json:"state"`
+	Version            Version        `json:"version"`
+}
+
+// NativeAgentOperationTool defines model for NativeAgentOperationTool.
+type NativeAgentOperationTool = json.RawMessage
+
+// NativeAgentPolicy defines model for NativeAgentPolicy.
+type NativeAgentPolicy struct {
+	GoalId ID `json:"goal_id"`
+	Id     ID `json:"id"`
+
+	// MaxAmount Canonical integer CNY cents, not yuan or JSON number; Go v1 capacity 0 through 9000000000000000.
+	//
+	// Example: 10000
+	MaxAmount  Money                   `json:"max_amount"`
+	Status     NativeAgentPolicyStatus `json:"status"`
+	ValidUntil Timestamp               `json:"valid_until"`
+	Version    Version                 `json:"version"`
+}
+
+// NativeAgentPolicyStatus defines model for NativeAgentPolicy.Status.
+type NativeAgentPolicyStatus string
+
+// NativeAgentProviderUsage Validated returned replies only, never independent invoice verification. Reserved calls/cost are not refunded for unknown failed attempts.
+type NativeAgentProviderUsage struct {
+	InputTokens   int64 `json:"input_tokens"`
+	OutputTokens  int64 `json:"output_tokens"`
+	ReportedCalls int64 `json:"reported_calls"`
+}
+
+// NativeAgentReference defines model for NativeAgentReference.
+type NativeAgentReference struct {
+	Digest Digest                   `json:"digest"`
+	Id     ID                       `json:"id"`
+	Kind   NativeAgentReferenceKind `json:"kind"`
+}
+
+// NativeAgentReferenceKind defines model for NativeAgentReference.Kind.
+type NativeAgentReferenceKind string
+
+// NativeAgentResult defines model for NativeAgentResult.
+type NativeAgentResult struct {
+	Authority       NativeAgentResultAuthority      `json:"authority"`
+	Budget          NativeAgentBudget               `json:"budget"`
+	Candidate       *NativeAgentCandidate           `json:"candidate,omitempty"`
+	Mode            NativeAgentResultMode           `json:"mode"`
+	ModelUsed       bool                            `json:"model_used"`
+	NativeCandidate *NativeAgentTemplateCandidate   `json:"native_candidate,omitempty"`
+	Observations    []NativeAgentObservation        `json:"observations"`
+	ProviderStatus  NativeAgentResultProviderStatus `json:"provider_status"`
+
+	// ProviderUsage Validated returned replies only, never independent invoice verification. Reserved calls/cost are not refunded for unknown failed attempts.
+	ProviderUsage NativeAgentProviderUsage `json:"provider_usage"`
+	References    []NativeAgentReference   `json:"references"`
+	union         json.RawMessage
+}
+
+// NativeAgentResultAuthority defines model for NativeAgentResult.Authority.
+type NativeAgentResultAuthority bool
+
+// NativeAgentResultMode defines model for NativeAgentResult.Mode.
+type NativeAgentResultMode string
+
+// NativeAgentResultProviderStatus defines model for NativeAgentResult.ProviderStatus.
+type NativeAgentResultProviderStatus string
+
+// NativeAgentResult0 defines model for NativeAgentResult.0.
+type NativeAgentResult0 struct {
+	Mode           *NativeAgentResult0Mode           `json:"mode,omitempty"`
+	ModelUsed      *NativeAgentResult0ModelUsed      `json:"model_used,omitempty"`
+	Observations   interface{}                       `json:"observations,omitempty"`
+	ProviderStatus *NativeAgentResult0ProviderStatus `json:"provider_status,omitempty"`
+}
+
+// NativeAgentResult0Mode defines model for NativeAgentResult.0.Mode.
+type NativeAgentResult0Mode string
+
+// NativeAgentResult0ModelUsed defines model for NativeAgentResult.0.ModelUsed.
+type NativeAgentResult0ModelUsed bool
+
+// NativeAgentResult0ProviderStatus defines model for NativeAgentResult.0.ProviderStatus.
+type NativeAgentResult0ProviderStatus string
+
+// NativeAgentResult1 defines model for NativeAgentResult.1.
+type NativeAgentResult1 struct {
+	Candidate       *NativeAgentModelCandidate         `json:"candidate,omitempty"`
+	Mode            *NativeAgentResult1Mode            `json:"mode,omitempty"`
+	ModelUsed       *NativeAgentResult1ModelUsed       `json:"model_used,omitempty"`
+	NativeCandidate *NativeAgentModelTemplateCandidate `json:"native_candidate,omitempty"`
+	Observations    *[]NativeAgentModelObservation     `json:"observations,omitempty"`
+	ProviderStatus  *NativeAgentResult1ProviderStatus  `json:"provider_status,omitempty"`
+	References      *[]NativeAgentModelReference       `json:"references,omitempty"`
+}
+
+// NativeAgentResult1Mode defines model for NativeAgentResult.1.Mode.
+type NativeAgentResult1Mode string
+
+// NativeAgentResult1ModelUsed defines model for NativeAgentResult.1.ModelUsed.
+type NativeAgentResult1ModelUsed bool
+
+// NativeAgentResult1ProviderStatus defines model for NativeAgentResult.1.ProviderStatus.
+type NativeAgentResult1ProviderStatus string
+
+// NativeAgentStatus defines model for NativeAgentStatus.
+type NativeAgentStatus struct {
+	Authority          NativeAgentStatusAuthority      `json:"authority"`
+	Mode               NativeAgentStatusMode           `json:"mode"`
+	ProviderConfigured bool                            `json:"provider_configured"`
+	ProviderStatus     NativeAgentStatusProviderStatus `json:"provider_status"`
+	union              json.RawMessage
+}
+
+// NativeAgentStatusAuthority defines model for NativeAgentStatus.Authority.
+type NativeAgentStatusAuthority bool
+
+// NativeAgentStatusMode defines model for NativeAgentStatus.Mode.
+type NativeAgentStatusMode string
+
+// NativeAgentStatusProviderStatus defines model for NativeAgentStatus.ProviderStatus.
+type NativeAgentStatusProviderStatus string
+
+// NativeAgentStatus0 defines model for NativeAgentStatus.0.
+type NativeAgentStatus0 struct {
+	Mode               *NativeAgentStatus0Mode               `json:"mode,omitempty"`
+	ProviderConfigured *NativeAgentStatus0ProviderConfigured `json:"provider_configured,omitempty"`
+	ProviderStatus     *NativeAgentStatus0ProviderStatus     `json:"provider_status,omitempty"`
+}
+
+// NativeAgentStatus0Mode defines model for NativeAgentStatus.0.Mode.
+type NativeAgentStatus0Mode string
+
+// NativeAgentStatus0ProviderConfigured defines model for NativeAgentStatus.0.ProviderConfigured.
+type NativeAgentStatus0ProviderConfigured bool
+
+// NativeAgentStatus0ProviderStatus defines model for NativeAgentStatus.0.ProviderStatus.
+type NativeAgentStatus0ProviderStatus string
+
+// NativeAgentStatus1 defines model for NativeAgentStatus.1.
+type NativeAgentStatus1 struct {
+	Mode               *NativeAgentStatus1Mode               `json:"mode,omitempty"`
+	ProviderConfigured *NativeAgentStatus1ProviderConfigured `json:"provider_configured,omitempty"`
+	ProviderStatus     *NativeAgentStatus1ProviderStatus     `json:"provider_status,omitempty"`
+}
+
+// NativeAgentStatus1Mode defines model for NativeAgentStatus.1.Mode.
+type NativeAgentStatus1Mode string
+
+// NativeAgentStatus1ProviderConfigured defines model for NativeAgentStatus.1.ProviderConfigured.
+type NativeAgentStatus1ProviderConfigured bool
+
+// NativeAgentStatus1ProviderStatus defines model for NativeAgentStatus.1.ProviderStatus.
+type NativeAgentStatus1ProviderStatus string
+
+// NativeAgentTemplateCandidate defines model for NativeAgentTemplateCandidate.
+type NativeAgentTemplateCandidate struct {
+	BankAuthority            NativeAgentTemplateCandidateBankAuthority            `json:"bank_authority"`
+	Compiled                 NativePolicyCompiledTemplate                         `json:"compiled"`
+	Forecast                 *NativePlanningForecastResult                        `json:"forecast,omitempty"`
+	GoalId                   *ID                                                  `json:"goal_id,omitempty"`
+	Mode                     NativeAgentTemplateCandidateMode                     `json:"mode"`
+	PolicyId                 *ID                                                  `json:"policy_id,omitempty"`
+	Preview                  *NativePolicyTemplatePreview                         `json:"preview,omitempty"`
+	Reasons                  []string                                             `json:"reasons"`
+	Reference                NativeAgentReference                                 `json:"reference"`
+	RequiresUserConfirmation NativeAgentTemplateCandidateRequiresUserConfirmation `json:"requires_user_confirmation"`
+	State                    NativeAgentTemplateCandidateState                    `json:"state"`
+}
+
+// NativeAgentTemplateCandidateBankAuthority defines model for NativeAgentTemplateCandidate.BankAuthority.
+type NativeAgentTemplateCandidateBankAuthority bool
+
+// NativeAgentTemplateCandidateMode defines model for NativeAgentTemplateCandidate.Mode.
+type NativeAgentTemplateCandidateMode string
+
+// NativeAgentTemplateCandidateRequiresUserConfirmation defines model for NativeAgentTemplateCandidate.RequiresUserConfirmation.
+type NativeAgentTemplateCandidateRequiresUserConfirmation bool
+
+// NativeAgentTemplateCandidateState defines model for NativeAgentTemplateCandidate.State.
+type NativeAgentTemplateCandidateState string
+
+// NativeAgentTemplateDescriptor defines model for NativeAgentTemplateDescriptor.
+type NativeAgentTemplateDescriptor struct {
+	// ExampleConfiguration Closed twelve-template configuration. Missing documented default fields are compiled by the server; cross-field and current-fact checks are authoritative domain rules.
+	ExampleConfiguration *NativeTemplateConfiguration              `json:"example_configuration,omitempty"`
+	Fields               []string                                  `json:"fields"`
+	TemplateName         NativeAgentTemplateDescriptorTemplateName `json:"template_name"`
+}
+
+// NativeAgentTemplateDescriptorTemplateName defines model for NativeAgentTemplateDescriptor.TemplateName.
+type NativeAgentTemplateDescriptorTemplateName string
+
+// NativeAgentToolCall defines model for NativeAgentToolCall.
+type NativeAgentToolCall = json.RawMessage
+
+// NativeAgentTurn Authenticated scope only. OFFLINE has exactly one registered closed tool; MODEL has only bounded text. No USER authority is accepted. Native grant tools/references/data are OFFLINE-only and never sent to a provider.
+type NativeAgentTurn = json.RawMessage
 
 // NativeAppActivity defines model for NativeAppActivity.
 type NativeAppActivity struct {
@@ -3013,26 +4858,31 @@ type NativeAppTemplatePolicyConfirmation struct {
 
 // NativeAppTemplatePolicyPreview defines model for NativeAppTemplatePolicyPreview.
 type NativeAppTemplatePolicyPreview struct {
-	Authority          string                                      `json:"authority"`
-	BankAuthority      NativeAppTemplatePolicyPreviewBankAuthority `json:"bank_authority"`
-	BaseVersion        int64                                       `json:"base_version"`
-	Compiled           NativePolicyCompiledTemplate                `json:"compiled"`
-	CreatedAt          Timestamp                                   `json:"created_at"`
-	ExpiresAt          Timestamp                                   `json:"expires_at"`
-	Facts              NativePolicyTemplateFacts                   `json:"facts"`
-	FactsHash          string                                      `json:"facts_hash"`
-	Forecast           NativePlanningForecastResult                `json:"forecast"`
-	GoalId             *ID                                         `json:"goal_id,omitempty"`
-	Id                 ID                                          `json:"id"`
-	Mode               string                                      `json:"mode"`
-	PolicyId           ID                                          `json:"policy_id"`
-	Preview            NativePolicyTemplatePreview                 `json:"preview"`
-	ReviewedBundleHash string                                      `json:"reviewed_bundle_hash"`
-	Scope              NativePolicyTemplateOwnerScope              `json:"scope"`
-	SourceHash         string                                      `json:"source_hash"`
-	TargetMutation     *NativeAppTemplateGoalTargetMutation        `json:"target_mutation,omitempty"`
-	Timezone           string                                      `json:"timezone"`
-	VersionId          ID                                          `json:"version_id"`
+	Authority             string                                      `json:"authority"`
+	BankAuthority         NativeAppTemplatePolicyPreviewBankAuthority `json:"bank_authority"`
+	BaseVersion           int64                                       `json:"base_version"`
+	Compiled              NativePolicyCompiledTemplate                `json:"compiled"`
+	CreatedAt             Timestamp                                   `json:"created_at"`
+	ExpiresAt             Timestamp                                   `json:"expires_at"`
+	Facts                 NativePolicyTemplateFacts                   `json:"facts"`
+	FactsHash             string                                      `json:"facts_hash"`
+	Forecast              NativePlanningForecastResult                `json:"forecast"`
+	ForecastInput         *NativePlanningForecastInput                `json:"forecast_input,omitempty"`
+	GoalId                *ID                                         `json:"goal_id,omitempty"`
+	Id                    ID                                          `json:"id"`
+	Mode                  string                                      `json:"mode"`
+	PolicyId              ID                                          `json:"policy_id"`
+	Preview               NativePolicyTemplatePreview                 `json:"preview"`
+	ReviewedBundleHash    string                                      `json:"reviewed_bundle_hash"`
+	Scope                 NativePolicyTemplateOwnerScope              `json:"scope"`
+	SnapshotFundsVersion  *int64                                      `json:"snapshot_funds_version,omitempty"`
+	SnapshotSourceVersion *int64                                      `json:"snapshot_source_version,omitempty"`
+	SourceHash            string                                      `json:"source_hash"`
+	SourceWitnessHash     *string                                     `json:"source_witness_hash,omitempty"`
+	SourceWitnessId       *ID                                         `json:"source_witness_id,omitempty"`
+	TargetMutation        *NativeAppTemplateGoalTargetMutation        `json:"target_mutation,omitempty"`
+	Timezone              string                                      `json:"timezone"`
+	VersionId             ID                                          `json:"version_id"`
 }
 
 // NativeAppTemplatePolicyPreviewBankAuthority defines model for NativeAppTemplatePolicyPreview.BankAuthority.
@@ -5512,6 +7362,556 @@ type SetTemplatePolicyStateJSONRequestBody = NativeTemplateStateRequest
 
 // PreviewTemplatePolicyJSONRequestBody defines body for PreviewTemplatePolicy for application/json ContentType.
 type PreviewTemplatePolicyJSONRequestBody = NativeAppTemplatePolicyRequest
+
+// AsNativeAgentNativeGrantCollection0 returns the union data inside the NativeAgentNativeGrantCollection as a NativeAgentNativeGrantCollection0
+func (t NativeAgentNativeGrantCollection) AsNativeAgentNativeGrantCollection0() (NativeAgentNativeGrantCollection0, error) {
+	var body NativeAgentNativeGrantCollection0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromNativeAgentNativeGrantCollection0 overwrites any union data inside the NativeAgentNativeGrantCollection as the provided NativeAgentNativeGrantCollection0
+func (t *NativeAgentNativeGrantCollection) FromNativeAgentNativeGrantCollection0(v NativeAgentNativeGrantCollection0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeNativeAgentNativeGrantCollection0 performs a merge with any union data inside the NativeAgentNativeGrantCollection, using the provided NativeAgentNativeGrantCollection0
+func (t *NativeAgentNativeGrantCollection) MergeNativeAgentNativeGrantCollection0(v NativeAgentNativeGrantCollection0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsNativeAgentNativeGrantCollection1 returns the union data inside the NativeAgentNativeGrantCollection as a NativeAgentNativeGrantCollection1
+func (t NativeAgentNativeGrantCollection) AsNativeAgentNativeGrantCollection1() (NativeAgentNativeGrantCollection1, error) {
+	var body NativeAgentNativeGrantCollection1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromNativeAgentNativeGrantCollection1 overwrites any union data inside the NativeAgentNativeGrantCollection as the provided NativeAgentNativeGrantCollection1
+func (t *NativeAgentNativeGrantCollection) FromNativeAgentNativeGrantCollection1(v NativeAgentNativeGrantCollection1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeNativeAgentNativeGrantCollection1 performs a merge with any union data inside the NativeAgentNativeGrantCollection, using the provided NativeAgentNativeGrantCollection1
+func (t *NativeAgentNativeGrantCollection) MergeNativeAgentNativeGrantCollection1(v NativeAgentNativeGrantCollection1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t NativeAgentNativeGrantCollection) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	object["authority"], err = json.Marshal(t.Authority)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'authority': %w", err)
+	}
+
+	object["bank_authority"], err = json.Marshal(t.BankAuthority)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'bank_authority': %w", err)
+	}
+
+	object["collection_digest"], err = json.Marshal(t.CollectionDigest)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'collection_digest': %w", err)
+	}
+
+	if t.Count != nil {
+		object["count"], err = json.Marshal(t.Count)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'count': %w", err)
+		}
+	}
+
+	if t.Items != nil {
+		object["items"], err = json.Marshal(t.Items)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'items': %w", err)
+		}
+	}
+
+	object["protocol"], err = json.Marshal(t.Protocol)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'protocol': %w", err)
+	}
+
+	if t.ReasonCodes != nil {
+		object["reason_codes"], err = json.Marshal(t.ReasonCodes)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'reason_codes': %w", err)
+		}
+	}
+
+	object["session_verification"], err = json.Marshal(t.SessionVerification)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'session_verification': %w", err)
+	}
+
+	object["status"], err = json.Marshal(t.Status)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'status': %w", err)
+	}
+
+	object["verification_scope"], err = json.Marshal(t.VerificationScope)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'verification_scope': %w", err)
+	}
+
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *NativeAgentNativeGrantCollection) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["authority"]; found {
+		err = json.Unmarshal(raw, &t.Authority)
+		if err != nil {
+			return fmt.Errorf("error reading 'authority': %w", err)
+		}
+	}
+
+	if raw, found := object["bank_authority"]; found {
+		err = json.Unmarshal(raw, &t.BankAuthority)
+		if err != nil {
+			return fmt.Errorf("error reading 'bank_authority': %w", err)
+		}
+	}
+
+	if raw, found := object["collection_digest"]; found {
+		err = json.Unmarshal(raw, &t.CollectionDigest)
+		if err != nil {
+			return fmt.Errorf("error reading 'collection_digest': %w", err)
+		}
+	}
+
+	if raw, found := object["count"]; found {
+		err = json.Unmarshal(raw, &t.Count)
+		if err != nil {
+			return fmt.Errorf("error reading 'count': %w", err)
+		}
+	}
+
+	if raw, found := object["items"]; found {
+		err = json.Unmarshal(raw, &t.Items)
+		if err != nil {
+			return fmt.Errorf("error reading 'items': %w", err)
+		}
+	}
+
+	if raw, found := object["protocol"]; found {
+		err = json.Unmarshal(raw, &t.Protocol)
+		if err != nil {
+			return fmt.Errorf("error reading 'protocol': %w", err)
+		}
+	}
+
+	if raw, found := object["reason_codes"]; found {
+		err = json.Unmarshal(raw, &t.ReasonCodes)
+		if err != nil {
+			return fmt.Errorf("error reading 'reason_codes': %w", err)
+		}
+	}
+
+	if raw, found := object["session_verification"]; found {
+		err = json.Unmarshal(raw, &t.SessionVerification)
+		if err != nil {
+			return fmt.Errorf("error reading 'session_verification': %w", err)
+		}
+	}
+
+	if raw, found := object["status"]; found {
+		err = json.Unmarshal(raw, &t.Status)
+		if err != nil {
+			return fmt.Errorf("error reading 'status': %w", err)
+		}
+	}
+
+	if raw, found := object["verification_scope"]; found {
+		err = json.Unmarshal(raw, &t.VerificationScope)
+		if err != nil {
+			return fmt.Errorf("error reading 'verification_scope': %w", err)
+		}
+	}
+
+	return err
+}
+
+// AsNativeAgentResult0 returns the union data inside the NativeAgentResult as a NativeAgentResult0
+func (t NativeAgentResult) AsNativeAgentResult0() (NativeAgentResult0, error) {
+	var body NativeAgentResult0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromNativeAgentResult0 overwrites any union data inside the NativeAgentResult as the provided NativeAgentResult0
+func (t *NativeAgentResult) FromNativeAgentResult0(v NativeAgentResult0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeNativeAgentResult0 performs a merge with any union data inside the NativeAgentResult, using the provided NativeAgentResult0
+func (t *NativeAgentResult) MergeNativeAgentResult0(v NativeAgentResult0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsNativeAgentResult1 returns the union data inside the NativeAgentResult as a NativeAgentResult1
+func (t NativeAgentResult) AsNativeAgentResult1() (NativeAgentResult1, error) {
+	var body NativeAgentResult1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromNativeAgentResult1 overwrites any union data inside the NativeAgentResult as the provided NativeAgentResult1
+func (t *NativeAgentResult) FromNativeAgentResult1(v NativeAgentResult1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeNativeAgentResult1 performs a merge with any union data inside the NativeAgentResult, using the provided NativeAgentResult1
+func (t *NativeAgentResult) MergeNativeAgentResult1(v NativeAgentResult1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t NativeAgentResult) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	object["authority"], err = json.Marshal(t.Authority)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'authority': %w", err)
+	}
+
+	object["budget"], err = json.Marshal(t.Budget)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'budget': %w", err)
+	}
+
+	if t.Candidate != nil {
+		object["candidate"], err = json.Marshal(t.Candidate)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'candidate': %w", err)
+		}
+	}
+
+	object["mode"], err = json.Marshal(t.Mode)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'mode': %w", err)
+	}
+
+	object["model_used"], err = json.Marshal(t.ModelUsed)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'model_used': %w", err)
+	}
+
+	if t.NativeCandidate != nil {
+		object["native_candidate"], err = json.Marshal(t.NativeCandidate)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'native_candidate': %w", err)
+		}
+	}
+
+	if t.Observations != nil {
+		object["observations"], err = json.Marshal(t.Observations)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'observations': %w", err)
+		}
+	}
+
+	object["provider_status"], err = json.Marshal(t.ProviderStatus)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'provider_status': %w", err)
+	}
+
+	object["provider_usage"], err = json.Marshal(t.ProviderUsage)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'provider_usage': %w", err)
+	}
+
+	if t.References != nil {
+		object["references"], err = json.Marshal(t.References)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'references': %w", err)
+		}
+	}
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *NativeAgentResult) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["authority"]; found {
+		err = json.Unmarshal(raw, &t.Authority)
+		if err != nil {
+			return fmt.Errorf("error reading 'authority': %w", err)
+		}
+	}
+
+	if raw, found := object["budget"]; found {
+		err = json.Unmarshal(raw, &t.Budget)
+		if err != nil {
+			return fmt.Errorf("error reading 'budget': %w", err)
+		}
+	}
+
+	if raw, found := object["candidate"]; found {
+		err = json.Unmarshal(raw, &t.Candidate)
+		if err != nil {
+			return fmt.Errorf("error reading 'candidate': %w", err)
+		}
+	}
+
+	if raw, found := object["mode"]; found {
+		err = json.Unmarshal(raw, &t.Mode)
+		if err != nil {
+			return fmt.Errorf("error reading 'mode': %w", err)
+		}
+	}
+
+	if raw, found := object["model_used"]; found {
+		err = json.Unmarshal(raw, &t.ModelUsed)
+		if err != nil {
+			return fmt.Errorf("error reading 'model_used': %w", err)
+		}
+	}
+
+	if raw, found := object["native_candidate"]; found {
+		err = json.Unmarshal(raw, &t.NativeCandidate)
+		if err != nil {
+			return fmt.Errorf("error reading 'native_candidate': %w", err)
+		}
+	}
+
+	if raw, found := object["observations"]; found {
+		err = json.Unmarshal(raw, &t.Observations)
+		if err != nil {
+			return fmt.Errorf("error reading 'observations': %w", err)
+		}
+	}
+
+	if raw, found := object["provider_status"]; found {
+		err = json.Unmarshal(raw, &t.ProviderStatus)
+		if err != nil {
+			return fmt.Errorf("error reading 'provider_status': %w", err)
+		}
+	}
+
+	if raw, found := object["provider_usage"]; found {
+		err = json.Unmarshal(raw, &t.ProviderUsage)
+		if err != nil {
+			return fmt.Errorf("error reading 'provider_usage': %w", err)
+		}
+	}
+
+	if raw, found := object["references"]; found {
+		err = json.Unmarshal(raw, &t.References)
+		if err != nil {
+			return fmt.Errorf("error reading 'references': %w", err)
+		}
+	}
+
+	return err
+}
+
+// AsNativeAgentStatus0 returns the union data inside the NativeAgentStatus as a NativeAgentStatus0
+func (t NativeAgentStatus) AsNativeAgentStatus0() (NativeAgentStatus0, error) {
+	var body NativeAgentStatus0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromNativeAgentStatus0 overwrites any union data inside the NativeAgentStatus as the provided NativeAgentStatus0
+func (t *NativeAgentStatus) FromNativeAgentStatus0(v NativeAgentStatus0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeNativeAgentStatus0 performs a merge with any union data inside the NativeAgentStatus, using the provided NativeAgentStatus0
+func (t *NativeAgentStatus) MergeNativeAgentStatus0(v NativeAgentStatus0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsNativeAgentStatus1 returns the union data inside the NativeAgentStatus as a NativeAgentStatus1
+func (t NativeAgentStatus) AsNativeAgentStatus1() (NativeAgentStatus1, error) {
+	var body NativeAgentStatus1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromNativeAgentStatus1 overwrites any union data inside the NativeAgentStatus as the provided NativeAgentStatus1
+func (t *NativeAgentStatus) FromNativeAgentStatus1(v NativeAgentStatus1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeNativeAgentStatus1 performs a merge with any union data inside the NativeAgentStatus, using the provided NativeAgentStatus1
+func (t *NativeAgentStatus) MergeNativeAgentStatus1(v NativeAgentStatus1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t NativeAgentStatus) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	object["authority"], err = json.Marshal(t.Authority)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'authority': %w", err)
+	}
+
+	object["mode"], err = json.Marshal(t.Mode)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'mode': %w", err)
+	}
+
+	object["provider_configured"], err = json.Marshal(t.ProviderConfigured)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'provider_configured': %w", err)
+	}
+
+	object["provider_status"], err = json.Marshal(t.ProviderStatus)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'provider_status': %w", err)
+	}
+
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *NativeAgentStatus) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["authority"]; found {
+		err = json.Unmarshal(raw, &t.Authority)
+		if err != nil {
+			return fmt.Errorf("error reading 'authority': %w", err)
+		}
+	}
+
+	if raw, found := object["mode"]; found {
+		err = json.Unmarshal(raw, &t.Mode)
+		if err != nil {
+			return fmt.Errorf("error reading 'mode': %w", err)
+		}
+	}
+
+	if raw, found := object["provider_configured"]; found {
+		err = json.Unmarshal(raw, &t.ProviderConfigured)
+		if err != nil {
+			return fmt.Errorf("error reading 'provider_configured': %w", err)
+		}
+	}
+
+	if raw, found := object["provider_status"]; found {
+		err = json.Unmarshal(raw, &t.ProviderStatus)
+		if err != nil {
+			return fmt.Errorf("error reading 'provider_status': %w", err)
+		}
+	}
+
+	return err
+}
 
 // AsNativePolicyTemplateAmountRule0 returns the union data inside the NativePolicyTemplateAmountRule as a NativePolicyTemplateAmountRule0
 func (t NativePolicyTemplateAmountRule) AsNativePolicyTemplateAmountRule0() (NativePolicyTemplateAmountRule0, error) {

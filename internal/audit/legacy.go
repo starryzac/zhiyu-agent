@@ -24,19 +24,48 @@ const MaxLegacySubjectBytes = 16 * 1024 * 1024
 // preserves numeric lexemes as json.Number, including finite floats and -0.0.
 // It does not apply new integer-only canonical rules or infer business truth.
 func ParseRawObject(raw []byte) (map[string]any, error) {
+	return parseRawObject(raw, nil)
+}
+
+// ParseRawObjectFields retains only the named root members, with their complete
+// nested values. Every unretained value is still strictly traversed; selection
+// never bypasses duplicate, numeric, byte, depth/node, UTF or EOF checks.
+func ParseRawObjectFields(raw []byte, fields ...string) (map[string]any, error) {
+	selected := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		selected[field] = struct{}{}
+	}
+	return parseRawObject(raw, selected)
+}
+
+// rawUnretainedString marks an already validated string value without its payload.
+// The walker discards it; keys and retained values always use owned Go strings.
+type rawUnretainedString struct{}
+
+func parseRawObject(raw []byte, selected map[string]struct{}) (map[string]any, error) {
 	if len(raw) > MaxLegacySubjectBytes || !utf8.Valid(raw) || !validSurrogates(raw) {
 		return nil, ErrInvalid
 	}
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
+	var nextToken func(bool) (json.Token, error)
+	var more func() bool
+	if selected == nil {
+		decoder := json.NewDecoder(bytes.NewReader(raw))
+		decoder.UseNumber()
+		nextToken = func(bool) (json.Token, error) { return decoder.Token() }
+		more = decoder.More
+	} else {
+		decoder := newSelectedRawTokens(raw)
+		nextToken = decoder.Token
+		more = decoder.More
+	}
 	nodes := 0
-	var read func(int) (any, error)
-	read = func(depth int) (any, error) {
+	var read func(int, bool) (any, error)
+	read = func(depth int, retain bool) (any, error) {
 		nodes++
 		if depth > 64 || nodes > 1000000 {
 			return nil, fmt.Errorf("%w: raw JSON bounds", ErrInvalid)
 		}
-		token, err := decoder.Token()
+		token, err := nextToken(retain)
 		if err != nil {
 			return nil, fmt.Errorf("%w: raw JSON syntax", ErrInvalid)
 		}
@@ -44,9 +73,18 @@ func ParseRawObject(raw []byte) (map[string]any, error) {
 		case json.Delim:
 			switch value {
 			case '{':
-				object := map[string]any{}
-				for decoder.More() {
-					keyToken, err := decoder.Token()
+				var object map[string]any
+				if retain {
+					object = map[string]any{}
+				}
+				// Unretained objects still remember every key for duplicate rejection.
+				// The full-retention path uses the original object map for that check.
+				var seen map[string]struct{}
+				if !retain || depth == 0 && selected != nil {
+					seen = map[string]struct{}{}
+				}
+				for more() {
+					keyToken, err := nextToken(true)
 					if err != nil {
 						return nil, ErrInvalid
 					}
@@ -54,30 +92,46 @@ func ParseRawObject(raw []byte) (map[string]any, error) {
 					if !ok {
 						return nil, ErrInvalid
 					}
-					if _, exists := object[key]; exists {
+					if seen != nil {
+						if _, exists := seen[key]; exists {
+							return nil, fmt.Errorf("%w: duplicate raw key", ErrInvalid)
+						}
+						seen[key] = struct{}{}
+					} else if _, exists := object[key]; exists {
 						return nil, fmt.Errorf("%w: duplicate raw key", ErrInvalid)
 					}
-					child, err := read(depth + 1)
+					keepChild := retain
+					if depth == 0 && selected != nil {
+						_, keepChild = selected[key]
+					}
+					child, err := read(depth+1, keepChild)
 					if err != nil {
 						return nil, err
 					}
-					object[key] = child
+					if keepChild {
+						object[key] = child
+					}
 				}
-				end, err := decoder.Token()
+				end, err := nextToken(false)
 				if err != nil || end != json.Delim('}') {
 					return nil, ErrInvalid
 				}
 				return object, nil
 			case '[':
-				array := []any{}
-				for decoder.More() {
-					child, err := read(depth + 1)
+				var array []any
+				if retain {
+					array = []any{}
+				}
+				for more() {
+					child, err := read(depth+1, retain)
 					if err != nil {
 						return nil, err
 					}
-					array = append(array, child)
+					if retain {
+						array = append(array, child)
+					}
 				}
-				end, err := decoder.Token()
+				end, err := nextToken(false)
 				if err != nil || end != json.Delim(']') {
 					return nil, ErrInvalid
 				}
@@ -89,17 +143,19 @@ func ParseRawObject(raw []byte) (map[string]any, error) {
 				return nil, err
 			}
 			return value, nil
+		case rawUnretainedString:
+			return nil, nil
 		case nil, bool, string:
 			return value, nil
 		default:
 			return nil, ErrInvalid
 		}
 	}
-	value, err := read(0)
+	value, err := read(0, true)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = decoder.Token(); err != io.EOF {
+	if _, err = nextToken(false); err != io.EOF {
 		return nil, fmt.Errorf("%w: trailing raw JSON", ErrInvalid)
 	}
 	object, ok := value.(map[string]any)

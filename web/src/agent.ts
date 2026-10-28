@@ -1,4 +1,6 @@
 import { Client, states } from './api';
+import { parseNativeGrant, parseNativeGrantCollection } from './agent-native-grants';
+import type { AgentNativeGrant, AgentNativeGrantCollection } from './agent-native-grants';
 import type { Dashboard, OperationState } from './api';
 import { cents } from './money';
 import { parseConfiguration, parseTemplateName } from './template-schema';
@@ -6,7 +8,7 @@ import type { TemplateConfiguration, TemplateName } from './template-schema';
 import { parseForecastResult } from './template-api';
 import type { CompiledTemplate, ForecastResult } from './template-api';
 
-export interface AgentReference { kind: 'ACCOUNT' | 'GOAL' | 'POLICY' | 'GRANT' | 'OPERATION' | 'ACCOUNTS' | 'RULES' | 'NATIVE_CONTEXT' | 'NATIVE_POLICY' | 'NATIVE_VERSION' | 'NATIVE_PLAN' | 'NATIVE_OPERATION' | 'NATIVE_POSITION' | 'NATIVE_PAYEE' | 'NATIVE_QUESTION'; id: string; digest: string }
+export interface AgentReference { kind: 'ACCOUNT' | 'GOAL' | 'POLICY' | 'GRANT' | 'OPERATION' | 'ACCOUNTS' | 'RULES' | 'NATIVE_CONTEXT' | 'NATIVE_POLICY' | 'NATIVE_VERSION' | 'NATIVE_PLAN' | 'NATIVE_OPERATION' | 'NATIVE_POSITION' | 'NATIVE_PAYEE' | 'NATIVE_QUESTION' | 'NATIVE_GRANT' | 'NATIVE_GRANTS'; id: string; digest: string }
 export interface AgentNativeRule { policy_id: string; version_id: string; version: number; compiled: CompiledTemplate; state: string; effective_state: string; goal_id?: string }
 export interface AgentNativeCandidate { mode: 'IF_USER_CONFIRMED'; compiled: CompiledTemplate; goal_id?: string; policy_id?: string; reference: AgentReference; state: string; reasons: string[]; amount_cents?: string; forecast?: ForecastResult; requires_user_confirmation: true; bank_authority: false }
 export interface AgentJoint { mode: 'READ_ONLY_NOT_EXECUTABLE'; state: string; reasons: string[]; allocations: { goal_id: string; amount_cents: string; minimum_shortfall_cents: string }[]; bank_authority: false }
@@ -16,7 +18,7 @@ export interface AgentObservation {
   accounts: { id: string; name: string; balance_cents: string; goal_owned_cents: string }[];
   goals: { id: string; name: string; target_cents: string; assigned_cents: string }[];
   operations: { id: string; state: OperationState; amount_cents: string; receipt_id?: string }[];
-  catalog?: { template_name: TemplateName; fields: string[] }[]; native_rules?: AgentNativeRule[]; forecast?: { state: string; result?: ForecastResult; reasons: string[] }; joint?: AgentJoint; object?: { kind: string; id: string; data: Record<string, unknown> }; objects?: { kind: string; id: string; data: Record<string, unknown> }[];
+  native_grants?: AgentNativeGrantCollection; native_grant?: AgentNativeGrant; catalog?: { template_name: TemplateName; fields: string[] }[]; native_rules?: AgentNativeRule[]; forecast?: { state: string; result?: ForecastResult; reasons: string[] }; joint?: AgentJoint; object?: { kind: string; id: string; data: Record<string, unknown> }; objects?: { kind: string; id: string; data: Record<string, unknown> }[];
 }
 export interface AgentResult {
   mode: 'OFFLINE' | 'MODEL'; provider_status: 'NOT_RUN' | 'CALLED'; model_used: boolean; authority: false;
@@ -26,8 +28,8 @@ export interface AgentResult {
   provider_usage?: { input_tokens: number; output_tokens: number; reported_calls: number };
 }
 export interface AgentStatus { mode: string; provider_status: string; provider_configured: boolean; authority: false }
-export type OfflineTool = 'funds_summary' | 'current_rules' | 'goal_status' | 'operation_status' | 'policy_candidate' | 'template_catalog' | 'template_candidate' | 'native_rules' | 'forecast365' | 'joint_preview' | 'object_status' | 'original_objects';
-const tools: readonly string[] = ['funds_summary', 'current_rules', 'goal_status', 'operation_status', 'policy_candidate', 'template_catalog', 'template_candidate', 'native_rules', 'forecast365', 'joint_preview', 'object_status', 'original_objects'];
+export type OfflineTool = 'funds_summary' | 'current_rules' | 'goal_status' | 'operation_status' | 'policy_candidate' | 'template_catalog' | 'template_candidate' | 'native_rules' | 'native_grants' | 'forecast365' | 'joint_preview' | 'object_status' | 'original_objects';
+const tools: readonly string[] = ['funds_summary', 'current_rules', 'goal_status', 'operation_status', 'policy_candidate', 'template_catalog', 'template_candidate', 'native_rules', 'native_grants', 'forecast365', 'joint_preview', 'object_status', 'original_objects'];
 function object(raw: unknown): Record<string, unknown> { if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('助手响应结构无法核实'); return raw as Record<string, unknown>; }
 function text(raw: unknown): string { if (typeof raw !== 'string') throw new Error('助手字段类型无法核实'); return raw; }
 function integer(raw: unknown): number { if (!Number.isSafeInteger(raw) || (raw as number) < 0) throw new Error('助手预算无法核实'); return raw as number; }
@@ -36,7 +38,8 @@ function list<T>(raw: unknown, parse: (raw: unknown) => T, cap = 100): T[] { if 
 function uuid(raw: unknown): string { const value = text(raw); if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value) || /^0{8}-0{4}-0{4}-0{4}-0{12}$/.test(value)) throw new Error('助手引用无法核实'); return value; }
 function reference(raw: unknown): AgentReference {
   const item = object(raw); const kind = text(item.kind); const digest = text(item.digest);
-  if (!['ACCOUNT', 'GOAL', 'POLICY', 'GRANT', 'OPERATION', 'ACCOUNTS', 'RULES', 'NATIVE_CONTEXT', 'NATIVE_POLICY', 'NATIVE_VERSION', 'NATIVE_PLAN', 'NATIVE_OPERATION', 'NATIVE_POSITION', 'NATIVE_PAYEE', 'NATIVE_QUESTION'].includes(kind) || !/^[0-9a-f]{64}$/.test(digest)) throw new Error('助手引用无法核实');
+  if (kind === 'NATIVE_GRANT' || kind === 'NATIVE_GRANTS') closed(item, ['kind', 'id', 'digest']);
+  if (!['ACCOUNT', 'GOAL', 'POLICY', 'GRANT', 'OPERATION', 'ACCOUNTS', 'RULES', 'NATIVE_CONTEXT', 'NATIVE_POLICY', 'NATIVE_VERSION', 'NATIVE_PLAN', 'NATIVE_OPERATION', 'NATIVE_POSITION', 'NATIVE_PAYEE', 'NATIVE_QUESTION', 'NATIVE_GRANT', 'NATIVE_GRANTS'].includes(kind) || !/^[0-9a-f]{64}$/.test(digest)) throw new Error('助手引用无法核实');
   return { kind: kind as AgentReference['kind'], id: uuid(item.id), digest };
 }
 function sameRef(a: AgentReference, b: AgentReference): boolean { return a.kind === b.kind && a.id === b.id && a.digest === b.digest; }
@@ -57,17 +60,23 @@ export function parseAgentResult(raw: unknown, data: Dashboard): AgentResult {
   if (item.mode === 'OFFLINE' && (item.model_used || item.provider_status !== 'NOT_RUN')) throw new Error('离线助手混入了未核实的模型调用');
   if (item.mode === 'MODEL' && (!item.model_used || item.provider_status !== 'CALLED')) throw new Error('模型调用状态无法核实');
   const references = list(item.references, reference, 1000);
+  if (item.mode === 'MODEL' && references.some((ref) => ref.kind === 'NATIVE_GRANT' || ref.kind === 'NATIVE_GRANTS')) throw new Error('模型响应混入未授权的原生授权引用');
   const observations = list(item.observations, (raw): AgentObservation => {
     const row = object(raw); const tool = text(row.tool); const summary = text(row.summary);
-    closed(row, ['tool', 'as_of', 'summary', 'verification_scope', 'references', 'accounts', 'goals', 'policies', 'grants', 'operations', 'candidate', 'native_candidate', 'native_rules', 'catalog', 'forecast', 'joint', 'object', 'objects']);
+    closed(row, ['tool', 'as_of', 'summary', 'verification_scope', 'references', 'accounts', 'goals', 'policies', 'grants', 'operations', 'candidate', 'native_candidate', 'native_rules', 'native_grants', 'native_grant', 'catalog', 'forecast', 'joint', 'object', 'objects']);
     if (!tools.includes(tool) || row.verification_scope !== 'DISPLAY_SNAPSHOT' || summary.length > 2000) throw new Error('助手观察未通过合同');
     const refs = list(row.references, reference, 1000);
     if (refs.some((ref) => !references.some((current) => sameRef(ref, current)))) throw new Error('助手引用缺少当前观察');
-    const native = tool === 'template_catalog' || tool === 'native_rules' || tool === 'forecast365' || tool === 'joint_preview' || tool === 'template_candidate' || tool === 'object_status' || tool === 'original_objects';
+    const native = tool === 'template_catalog' || tool === 'native_rules' || tool === 'native_grants' || tool === 'forecast365' || tool === 'joint_preview' || tool === 'template_candidate' || tool === 'object_status' || tool === 'original_objects';
     if (native && tool !== 'template_catalog' && !refs.some((r) => r.kind === 'NATIVE_CONTEXT')) throw new Error('原生观察缺少当前完整上下文');
+    const hasGrants = row.native_grants != null || row.native_grant != null || refs.some((ref) => ref.kind === 'NATIVE_GRANT' || ref.kind === 'NATIVE_GRANTS');
+    if (hasGrants && (item.mode !== 'OFFLINE' || !['native_grants', 'object_status'].includes(tool) || row.native_grants != null && row.native_grant != null || row.object != null || row.objects != null || row.candidate != null || row.native_candidate != null || row.native_rules != null || row.forecast != null || row.joint != null || ['accounts', 'goals', 'policies', 'grants', 'operations', 'catalog'].some((key) => row[key] != null) || item.candidate != null || item.native_candidate != null)) throw new Error('原生授权只能独立本地只读核对');
+    if (hasGrants && row.native_grants == null && row.native_grant == null || tool === 'native_grants' && row.native_grants == null || row.native_grant != null && tool !== 'object_status') throw new Error('原生授权观察缺少闭合内容');
+    const nativeGrants = row.native_grants == null ? undefined : parseNativeGrantCollection(row.native_grants, refs, asOf(row.as_of));
+    const nativeGrant = row.native_grant == null ? undefined : parseNativeGrant(row.native_grant, refs, asOf(row.as_of));
     let forecast: AgentObservation['forecast']; if (row.forecast != null) { const f = object(row.forecast); closed(f, ['state', 'result', 'reasons', 'bank_authority']); if (f.bank_authority !== false || tool !== 'forecast365') throw new Error('预测观察夹带权限'); forecast = { state: text(f.state), reasons: reasons(f.reasons), result: f.result == null ? undefined : parseForecastResult(f.result) }; if (forecast.result && forecast.result.horizon_days !== 365 || !forecast.result && forecast.state !== 'INCOMPLETE') throw new Error('预测观察范围不完整'); }
     let original: AgentObservation['object']; if (row.object != null) { const o = object(row.object); if (tool !== 'object_status' || !refs.some((r) => r.kind === o.kind && r.id === o.id)) throw new Error('原对象缺少当前引用'); readOnlyTree(o.data); if (JSON.stringify(o.data).length > 32768) throw new Error('原对象超出范围'); original = { kind: text(o.kind), id: uuid(o.id), data: object(o.data) }; }
-    return { tool, as_of: asOf(row.as_of), summary, references: refs,
+    return { tool, as_of: asOf(row.as_of), summary, references: refs, native_grants: nativeGrants, native_grant: nativeGrant,
       objects: row.objects == null ? undefined : list(row.objects, (raw) => { const o = object(raw); if (tool !== 'original_objects' || !refs.some((r) => r.kind === o.kind && r.id === o.id)) throw new Error('原对象列表缺少当前引用'); readOnlyTree(o.data); return { kind: text(o.kind), id: uuid(o.id), data: object(o.data) }; }, 100), catalog: row.catalog == null ? undefined : list(row.catalog, (raw) => { const v = object(raw); return { template_name: parseTemplateName(v.template_name), fields: list(v.fields, text, 40) }; }, 12),
       native_rules: row.native_rules == null ? undefined : list(row.native_rules, (raw) => parseNativeRule(raw, refs)), forecast, joint: row.joint == null ? undefined : parseJoint(row.joint, data), object: original,
       accounts: list(row.accounts ?? [], (raw) => { const account = object(raw); return { id: uuid(account.id), name: text(account.name), balance_cents: amount(account.balance_cents), goal_owned_cents: amount(account.goal_owned_cents) }; }),

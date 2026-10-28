@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	bankv2 "zhiyu.local/zhiyu-go/internal/execution/bankv2"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 )
@@ -374,20 +375,33 @@ func nativeExecOne(ctx context.Context, tx pgx.Tx, query string, args ...any) er
 	}
 	return nil
 }
-func nativeCheckOriginal(ctx context.Context, tx pgx.Tx, query string, args ...any) error {
-	var same bool
-	if err := tx.QueryRow(ctx, query, args...).Scan(&same); err != nil {
-		return err
-	}
-	if !same {
-		return ErrLedgerConflict
-	}
-	return nil
+func nativeQueueOne(batch *pgx.Batch, query string, args ...any) {
+	batch.Queue(query, args...).Exec(func(tag pgconn.CommandTag) error {
+		if tag.RowsAffected() != 1 {
+			return ErrLedgerConflict
+		}
+		return nil
+	})
+}
+
+func nativeQueueOriginal(batch *pgx.Batch, query string, args ...any) {
+	batch.Queue(query, args...).QueryRow(func(row pgx.Row) error {
+		var same bool
+		if err := row.Scan(&same); err != nil {
+			return err
+		}
+		if !same {
+			return ErrLedgerConflict
+		}
+		return nil
+	})
 }
 
 // PersistNativeLedger saves a complete snapshot without deleting history. It
 // does not insert commands/jobs or authorize any financial effect. All new
 // action IDs must already belong to a native operation in this transaction.
+// Callers must roll back on every error. A batch can execute later statements
+// before an earlier result check fails; no part of that transaction may commit.
 func (s *Store) PersistNativeLedger(ctx context.Context, tx pgx.Tx, env, user funds.ID, n NativeLedger) error {
 	if tx == nil {
 		return ErrLedgerConflict
@@ -402,63 +416,56 @@ func (s *Store) PersistNativeLedger(ctx context.Context, tx pgx.Tx, env, user fu
 	if namespace != n.Namespace {
 		return ErrLedgerConflict
 	}
+	// Read the complete actual scope in this same transaction, never a cached
+	// or partial prior snapshot. Only four complete resource sets select deltas;
+	// all other original writes and final full verification remain unchanged.
+	previous, err := s.LoadNativeLedger(ctx, tx, env, user, n.Income.Snapshot().AsOf)
+	if err != nil {
+		return err
+	}
+	changes, err := nativeChangedResources(previous, n)
+	if err != nil {
+		return err
+	}
+	var writes pgx.Batch
 	for _, a := range n.Accounts {
-		if err := nativeExecOne(ctx, tx, `UPDATE accounts SET balance_cents=$4,goal_owned_cents=$5,observed_at=$6 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, env.String(), user.String(), a.ID.String(), a.Balance.Cents(), a.GoalOwned.Cents(), a.ObservedAt); err != nil {
-			return err
-		}
+		nativeQueueOne(&writes, `UPDATE accounts SET balance_cents=$4,goal_owned_cents=$5,observed_at=$6 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, env.String(), user.String(), a.ID.String(), a.Balance.Cents(), a.GoalOwned.Cents(), a.ObservedAt)
 	}
 	for _, g := range n.Goals {
 		assigned, err := g.Cash.Add(g.Principal)
 		if err != nil {
 			return err
 		}
-		if err = nativeExecOne(ctx, tx, `UPDATE goals SET assigned_cents=$4 WHERE environment_id=$1 AND user_id=$2 AND id=$3 AND account_id=$5`, env.String(), user.String(), g.GoalID.String(), assigned.Cents(), g.AccountID.String()); err != nil {
-			return err
-		}
-		if err = nativeExecOne(ctx, tx, `INSERT INTO native_goal_balances(environment_id,user_id,goal_id,cash_cents,principal_cents,loss_cents) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(environment_id,user_id,goal_id) DO UPDATE SET cash_cents=EXCLUDED.cash_cents,principal_cents=EXCLUDED.principal_cents,loss_cents=EXCLUDED.loss_cents`, env.String(), user.String(), g.GoalID.String(), g.Cash.Cents(), g.Principal.Cents(), g.Loss.Cents()); err != nil {
-			return err
-		}
+		nativeQueueOne(&writes, `UPDATE goals SET assigned_cents=$4 WHERE environment_id=$1 AND user_id=$2 AND id=$3 AND account_id=$5`, env.String(), user.String(), g.GoalID.String(), assigned.Cents(), g.AccountID.String())
+		nativeQueueOne(&writes, `INSERT INTO native_goal_balances(environment_id,user_id,goal_id,cash_cents,principal_cents,loss_cents) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(environment_id,user_id,goal_id) DO UPDATE SET cash_cents=EXCLUDED.cash_cents,principal_cents=EXCLUDED.principal_cents,loss_cents=EXCLUDED.loss_cents`, env.String(), user.String(), g.GoalID.String(), g.Cash.Cents(), g.Principal.Cents(), g.Loss.Cents())
 	}
-	for _, l := range n.GoalLots {
-		if err := nativeExecOne(ctx, tx, `INSERT INTO native_goal_lots(environment_id,user_id,goal_id,account_id,source_kind,source_id,available_cents,reserved_cents) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(environment_id,user_id,goal_id,account_id,source_kind,source_id) DO UPDATE SET available_cents=EXCLUDED.available_cents,reserved_cents=EXCLUDED.reserved_cents`, env.String(), user.String(), l.GoalID.String(), l.AccountID.String(), l.SourceKind, l.SourceID, l.Available.Cents(), l.Reserved.Cents()); err != nil {
-			return err
-		}
+	for _, l := range changes.GoalLots {
+		nativeQueueOne(&writes, `INSERT INTO native_goal_lots(environment_id,user_id,goal_id,account_id,source_kind,source_id,available_cents,reserved_cents) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(environment_id,user_id,goal_id,account_id,source_kind,source_id) DO UPDATE SET available_cents=EXCLUDED.available_cents,reserved_cents=EXCLUDED.reserved_cents`, env.String(), user.String(), l.GoalID.String(), l.AccountID.String(), l.SourceKind, l.SourceID, l.Available.Cents(), l.Reserved.Cents())
 	}
-	for _, h := range n.Holds {
-		if err := nativeExecOne(ctx, tx, `INSERT INTO native_holds(environment_id,user_id,operation_id,resource_kind,resource_id,resource_detail,amount_cents,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(environment_id,user_id,operation_id,resource_kind,resource_id,resource_detail) DO UPDATE SET state=EXCLUDED.state WHERE native_holds.amount_cents=EXCLUDED.amount_cents`, env.String(), user.String(), h.OperationID.String(), h.ResourceKind, h.ResourceID, h.ResourceDetail, h.Amount.Cents(), string(h.State)); err != nil {
-			return err
-		}
+	for _, h := range changes.Holds {
+		nativeQueueOne(&writes, `INSERT INTO native_holds(environment_id,user_id,operation_id,resource_kind,resource_id,resource_detail,amount_cents,state) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(environment_id,user_id,operation_id,resource_kind,resource_id,resource_detail) DO UPDATE SET state=EXCLUDED.state WHERE native_holds.amount_cents=EXCLUDED.amount_cents`, env.String(), user.String(), h.OperationID.String(), h.ResourceKind, h.ResourceID, h.ResourceDetail, h.Amount.Cents(), string(h.State))
 	}
 	for _, p := range n.Positions {
 		args := []any{env.String(), user.String(), p.ID, optionalNativeID(p.OpeningOperationID), p.BankKey, p.Original, p.OriginalHash, p.Principal.Cents(), optionalNativeID(p.GoalID), p.ReturnAccountID.String(), p.PurchasedAt, p.MaturityAt}
-		if _, err := tx.Exec(ctx, `INSERT INTO native_positions(environment_id,user_id,id,opening_operation_id,bank_key,original,original_hash,principal_cents,goal_id,return_account_id,purchased_at,maturity_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(environment_id,user_id,id) DO NOTHING`, args...); err != nil {
-			return err
-		}
-		if err := nativeCheckOriginal(ctx, tx, `SELECT opening_operation_id IS NOT DISTINCT FROM $4::uuid AND bank_key=$5 AND original=$6 AND original_hash=$7 AND principal_cents=$8 AND goal_id IS NOT DISTINCT FROM $9::uuid AND return_account_id=$10::uuid AND purchased_at=$11 AND maturity_at IS NOT DISTINCT FROM $12::timestamptz FROM native_positions WHERE environment_id=$1 AND user_id=$2 AND id=$3`, args...); err != nil {
-			return err
-		}
-		if err := nativeExecOne(ctx, tx, `INSERT INTO native_position_states(environment_id,user_id,position_id,closing_operation_id,closed) VALUES($1,$2,$3,$4,$5) ON CONFLICT(environment_id,user_id,position_id) DO UPDATE SET closing_operation_id=EXCLUDED.closing_operation_id,closed=EXCLUDED.closed`, env.String(), user.String(), p.ID, optionalNativeID(p.ClosingOperationID), p.Closed); err != nil {
-			return err
-		}
+		writes.Queue(`INSERT INTO native_positions(environment_id,user_id,id,opening_operation_id,bank_key,original,original_hash,principal_cents,goal_id,return_account_id,purchased_at,maturity_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT(environment_id,user_id,id) DO NOTHING`, args...)
+		nativeQueueOriginal(&writes, `SELECT opening_operation_id IS NOT DISTINCT FROM $4::uuid AND bank_key=$5 AND original=$6 AND original_hash=$7 AND principal_cents=$8 AND goal_id IS NOT DISTINCT FROM $9::uuid AND return_account_id=$10::uuid AND purchased_at=$11 AND maturity_at IS NOT DISTINCT FROM $12::timestamptz FROM native_positions WHERE environment_id=$1 AND user_id=$2 AND id=$3`, args...)
+		nativeQueueOne(&writes, `INSERT INTO native_position_states(environment_id,user_id,position_id,closing_operation_id,closed) VALUES($1,$2,$3,$4,$5) ON CONFLICT(environment_id,user_id,position_id) DO UPDATE SET closing_operation_id=EXCLUDED.closing_operation_id,closed=EXCLUDED.closed`, env.String(), user.String(), p.ID, optionalNativeID(p.ClosingOperationID), p.Closed)
 	}
 	for _, r := range n.PrincipalReturns {
 		args := []any{env.String(), user.String(), r.BankKey, r.OperationID.String(), r.PositionID, r.Original, r.OriginalHash, r.Amount.Cents(), r.OccurredAt}
-		if _, err := tx.Exec(ctx, `INSERT INTO native_principal_returns(environment_id,user_id,bank_key,operation_id,position_id,original,original_hash,amount_cents,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(environment_id,user_id,bank_key) DO NOTHING`, args...); err != nil {
-			return err
-		}
-		if err := nativeCheckOriginal(ctx, tx, `SELECT operation_id=$4::uuid AND position_id=$5 AND original=$6 AND original_hash=$7 AND amount_cents=$8 AND occurred_at=$9 FROM native_principal_returns WHERE environment_id=$1 AND user_id=$2 AND bank_key=$3`, args...); err != nil {
-			return err
-		}
+		writes.Queue(`INSERT INTO native_principal_returns(environment_id,user_id,bank_key,operation_id,position_id,original,original_hash,amount_cents,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT(environment_id,user_id,bank_key) DO NOTHING`, args...)
+		nativeQueueOriginal(&writes, `SELECT operation_id=$4::uuid AND position_id=$5 AND original=$6 AND original_hash=$7 AND amount_cents=$8 AND occurred_at=$9 FROM native_principal_returns WHERE environment_id=$1 AND user_id=$2 AND bank_key=$3`, args...)
 	}
-	for _, l := range n.ReturnLocations {
-		if err := nativeExecOne(ctx, tx, `INSERT INTO native_return_locations(environment_id,user_id,bank_key,account_id,available_cents,reserved_cents) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(environment_id,user_id,bank_key,account_id) DO UPDATE SET available_cents=EXCLUDED.available_cents,reserved_cents=EXCLUDED.reserved_cents`, env.String(), user.String(), l.BankKey, l.AccountID.String(), l.Available.Cents(), l.Reserved.Cents()); err != nil {
-			return err
-		}
+	for _, l := range changes.ReturnLocations {
+		nativeQueueOne(&writes, `INSERT INTO native_return_locations(environment_id,user_id,bank_key,account_id,available_cents,reserved_cents) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(environment_id,user_id,bank_key,account_id) DO UPDATE SET available_cents=EXCLUDED.available_cents,reserved_cents=EXCLUDED.reserved_cents`, env.String(), user.String(), l.BankKey, l.AccountID.String(), l.Available.Cents(), l.Reserved.Cents())
 	}
-	for _, c := range n.ReturnClaims {
-		if err := nativeExecOne(ctx, tx, `INSERT INTO native_return_claims(environment_id,user_id,operation_id,bank_key,account_id,amount_cents,state) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment_id,user_id,operation_id,bank_key,account_id) DO UPDATE SET state=EXCLUDED.state WHERE native_return_claims.amount_cents=EXCLUDED.amount_cents`, env.String(), user.String(), c.OperationID.String(), c.BankKey, c.AccountID.String(), c.Amount.Cents(), string(c.State)); err != nil {
-			return err
-		}
+	for _, c := range changes.ReturnClaims {
+		nativeQueueOne(&writes, `INSERT INTO native_return_claims(environment_id,user_id,operation_id,bank_key,account_id,amount_cents,state) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(environment_id,user_id,operation_id,bank_key,account_id) DO UPDATE SET state=EXCLUDED.state WHERE native_return_claims.amount_cents=EXCLUDED.amount_cents`, env.String(), user.String(), c.OperationID.String(), c.BankKey, c.AccountID.String(), c.Amount.Cents(), string(c.State))
+	}
+	// Close consumes every queued result and checks callbacks before the next
+	// transaction query. Queue order and all per-result assertions are retained.
+	if err := tx.SendBatch(ctx, &writes).Close(); err != nil {
+		return err
 	}
 	if err := s.SaveLedger(ctx, tx, env, user, n.Income); err != nil {
 		return err

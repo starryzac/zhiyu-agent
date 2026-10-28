@@ -70,7 +70,7 @@ func (s *Service) Bootstrap(ctx context.Context, seed SeedIdentity) (BootstrapRe
 	if err = tx.QueryRow(ctx, `SELECT id::text FROM environments WHERE namespace=$1 FOR UPDATE`, seed.Namespace).Scan(&envID); err != nil || envID != seed.EnvironmentID.String() {
 		return result, reject("DEMO_SEED_IDENTITY_CONFLICT", err)
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO users(environment_id,id) VALUES($1,$2) ON CONFLICT DO NOTHING`, envID, seed.UserID.String())
+	userInserted, err := tx.Exec(ctx, `INSERT INTO users(environment_id,id) VALUES($1,$2) ON CONFLICT DO NOTHING`, envID, seed.UserID.String())
 	if err != nil {
 		return result, err
 	}
@@ -124,6 +124,19 @@ func (s *Service) Bootstrap(ctx context.Context, seed SeedIdentity) (BootstrapRe
 		_, err = tx.Exec(ctx, `INSERT INTO protection_snapshots(environment_id,user_id,version,original,original_hash,observed_at) VALUES($1,$2,1,$3,$4,$5)`, envID, seed.UserID.String(), raw, Hash(raw), seed.CreatedAt)
 		if err != nil {
 			return result, err
+		}
+	}
+	if userInserted.RowsAffected() == 1 {
+		witnessEnabled, e := templateSourceWitnessEnabled(ctx, tx)
+		if e != nil {
+			return result, e
+		}
+		if witnessEnabled {
+			// FV1 seals the actual empty user insertion. The newly inserted
+			// account/zero-goal inventory forms the separate next prefix.
+			if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, envID, seed.UserID.String()); e != nil {
+				return result, e
+			}
 		}
 	}
 	if err = tx.Commit(ctx); err != nil {

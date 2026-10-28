@@ -44,13 +44,11 @@ func forecastGoalProtection(v policy.TemplateVersion, g policy.TemplateGoalFact,
 	}
 	local := asOf.In(zone)
 	today := local.Format("2006-01-02")
-	start, _, err := policy.TemplateValidity(v.Compiled, v.ConfirmedAt, timezone)
+	dates, err := policy.PrepareTemplateDateRange(v, timezone)
 	if err != nil {
 		return result, err
 	}
-	if start.Before(v.ConfirmedAt) {
-		start = v.ConfirmedAt
-	}
+	start := dates.Start()
 	remaining := jointMax(0, config.Target.Cents()-g.Owned.Cents())
 	result.Remaining, _ = forecastMoney(remaining)
 	for month := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, zone); !month.After(end); month = month.AddDate(0, 1, 0) {
@@ -67,7 +65,7 @@ func forecastGoalProtection(v policy.TemplateVersion, g policy.TemplateGoalFact,
 		if first > endDate || first > config.Deadline || first[:7] != month.Format("2006-01") {
 			continue
 		}
-		active, e := policy.TemplateActiveOnDate(v, first, timezone)
+		active, e := dates.ActiveOnDate(first)
 		if e != nil {
 			return result, e
 		}
@@ -132,9 +130,9 @@ func BuildJointProtection(in ForecastInput, selected []funds.ID) ([]JointProtect
 	}
 	endDate := forecast.Points[len(forecast.Points)-1].Date
 	type termVersion struct {
-		term    JointGoalProtection
-		version policy.TemplateVersion
-		state   string
+		term  JointGoalProtection
+		dates policy.TemplateDateRange
+		state string
 	}
 	terms := []termVersion{}
 	for _, id := range selected {
@@ -170,7 +168,11 @@ func BuildJointProtection(in ForecastInput, selected []funds.ID) ([]JointProtect
 		if e != nil {
 			return nil, e
 		}
-		terms = append(terms, termVersion{term, *version, state})
+		dates, e := policy.PrepareTemplateDateRange(*version, in.Timezone)
+		if e != nil {
+			return nil, e
+		}
+		terms = append(terms, termVersion{term, dates, state})
 	}
 	result := make([]JointProtectionPoint, 0, len(forecast.Points))
 	for _, point := range forecast.Points {
@@ -178,7 +180,7 @@ func BuildJointProtection(in ForecastInput, selected []funds.ID) ([]JointProtect
 		var selectedFloor int64
 		for _, tv := range terms {
 			term := tv.term
-			active, e := policy.TemplateActiveOnDate(tv.version, point.Date, in.Timezone)
+			active, e := tv.dates.ActiveOnDate(point.Date)
 			if e != nil {
 				return nil, e
 			}

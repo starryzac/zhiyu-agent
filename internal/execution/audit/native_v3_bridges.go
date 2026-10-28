@@ -176,10 +176,11 @@ func (g *nativeGraphV3) standingBridgeOriginalV3(id string) (wirenativeStandingB
 	if err := g.grantActiveAtV3(grant.ID.String(), group.GrantStateSequence, group.CreatedAt); err != nil {
 		return group, err
 	}
-	if _, err := g.frozenLedgerV3(group.Candidate.Ledger, group.CreatedAt); err != nil {
+	ledger, err := g.frozenLedgerV3(group.Candidate.Ledger, group.CreatedAt)
+	if err != nil {
 		return group, err
 	}
-	if err := g.frozenForecastV3(group.Candidate.ForecastInput, group.Candidate.ForecastBefore, group.Dependencies.SourceEvidenceVersion); err != nil {
+	if err := g.frozenForecastEconomyV3(group.Candidate.ForecastInput, group.Candidate.ForecastBefore, ledger, group.Dependencies); err != nil {
 		return group, err
 	}
 	claim := g.row("native_grant_budget_claims", id)

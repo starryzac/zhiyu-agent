@@ -9,6 +9,7 @@ import (
 	"time"
 
 	evidence "zhiyu.local/zhiyu-go/internal/audit"
+	"zhiyu.local/zhiyu-go/internal/execution/fundswitness"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 	planning "zhiyu.local/zhiyu-go/internal/planning/domain"
 	policy "zhiyu.local/zhiyu-go/internal/policy/domain"
@@ -20,26 +21,31 @@ type nativeTemplateTargetV3 struct {
 	After  funds.Money `json:"after_cents"`
 }
 type nativeTemplatePreviewV3 struct {
-	ID                 funds.ID                  `json:"id"`
-	PolicyID           funds.ID                  `json:"policy_id"`
-	VersionID          funds.ID                  `json:"version_id"`
-	BaseVersion        uint64                    `json:"base_version"`
-	Mode               string                    `json:"mode"`
-	Scope              policy.TemplateOwnerScope `json:"scope"`
-	GoalID             *funds.ID                 `json:"goal_id,omitempty"`
-	TargetMutation     *nativeTemplateTargetV3   `json:"target_mutation,omitempty"`
-	Timezone           string                    `json:"timezone"`
-	Compiled           policy.CompiledTemplate   `json:"compiled"`
-	FactsHash          string                    `json:"facts_hash"`
-	SourceHash         string                    `json:"source_hash"`
-	Facts              policy.TemplateFacts      `json:"facts"`
-	Preview            policy.TemplatePreview    `json:"preview"`
-	Forecast           planning.ForecastResult   `json:"forecast"`
-	ReviewedBundleHash string                    `json:"reviewed_bundle_hash"`
-	CreatedAt          time.Time                 `json:"created_at"`
-	ExpiresAt          time.Time                 `json:"expires_at"`
-	Authority          string                    `json:"authority"`
-	BankAuthority      bool                      `json:"bank_authority"`
+	ID                    funds.ID                  `json:"id"`
+	PolicyID              funds.ID                  `json:"policy_id"`
+	VersionID             funds.ID                  `json:"version_id"`
+	BaseVersion           uint64                    `json:"base_version"`
+	Mode                  string                    `json:"mode"`
+	Scope                 policy.TemplateOwnerScope `json:"scope"`
+	GoalID                *funds.ID                 `json:"goal_id,omitempty"`
+	TargetMutation        *nativeTemplateTargetV3   `json:"target_mutation,omitempty"`
+	Timezone              string                    `json:"timezone"`
+	Compiled              policy.CompiledTemplate   `json:"compiled"`
+	FactsHash             string                    `json:"facts_hash"`
+	SourceHash            string                    `json:"source_hash"`
+	SourceWitnessID       *funds.ID                 `json:"source_witness_id,omitempty"`
+	SourceWitnessHash     string                    `json:"source_witness_hash,omitempty"`
+	SnapshotFundsVersion  uint64                    `json:"snapshot_funds_version,omitempty"`
+	SnapshotSourceVersion uint64                    `json:"snapshot_source_version,omitempty"`
+	Facts                 policy.TemplateFacts      `json:"facts"`
+	Preview               policy.TemplatePreview    `json:"preview"`
+	ForecastInput         *planning.ForecastInput   `json:"forecast_input,omitempty"`
+	Forecast              planning.ForecastResult   `json:"forecast"`
+	ReviewedBundleHash    string                    `json:"reviewed_bundle_hash"`
+	CreatedAt             time.Time                 `json:"created_at"`
+	ExpiresAt             time.Time                 `json:"expires_at"`
+	Authority             string                    `json:"authority"`
+	BankAuthority         bool                      `json:"bank_authority"`
 }
 type nativeTemplateConfirmationV3 struct {
 	Protocol                                             string `json:"protocol"`
@@ -47,7 +53,8 @@ type nativeTemplateConfirmationV3 struct {
 	Scope                                                policy.TemplateOwnerScope
 	PrincipalKind, ReviewedBundleHash, ConfigurationHash string
 	ConfirmedAt                                          time.Time
-	TargetMutation                                       *nativeTemplateTargetV3 `json:"target_mutation,omitempty"`
+	TargetMutation                                       *nativeTemplateTargetV3           `json:"target_mutation,omitempty"`
+	DatedReferences                                      *nativeDatedConfirmationWitnessV1 `json:"dated_references,omitempty"`
 }
 type nativeTemplateStatusV3 struct {
 	Protocol                              string
@@ -56,6 +63,7 @@ type nativeTemplateStatusV3 struct {
 	Action, OldState, NewState, ActorKind string
 	SessionID                             *funds.ID
 	At                                    time.Time
+	Admission                             *fundswitness.Boundary `json:"admission,omitempty"`
 }
 
 type nativeGrantV3 struct {
@@ -94,6 +102,7 @@ type nativeGrantStateV3 struct {
 	SessionID     funds.ID                  `json:"session_id"`
 	PrincipalKind string                    `json:"principal_kind"`
 	At            time.Time                 `json:"at"`
+	Admission     *fundswitness.Boundary    `json:"admission,omitempty"`
 }
 
 func (g *nativeGraphV3) ownerScopeV3() policy.TemplateOwnerScope {

@@ -30,6 +30,12 @@ func creditHTTPError(w http.ResponseWriter, err error) {
 // CreditReadHandler deliberately has no write route. It may wrap unchanged
 // v1/v2 handlers once the separate bank003 migration is explicitly enabled.
 func CreditReadHandler(store *Store, fallback http.Handler) http.Handler {
+	return CreditReadHandlerWithOptions(store, HandlerOptions{}, fallback)
+}
+
+// Clock is trusted server configuration, shared with POST/quote handlers in
+// controlled simulation. No query parameter or request body supplies it.
+func CreditReadHandlerWithOptions(store *Store, options HandlerOptions, fallback http.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v3/income/credits", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -64,7 +70,13 @@ func CreditReadHandler(store *Store, fallback http.Handler) http.Handler {
 		writeJSON(w, http.StatusOK, out)
 	})
 	mux.HandleFunc("GET /v3/income/state", func(w http.ResponseWriter, r *http.Request) {
-		out, err := store.CurrentIncomeState(r.Context(), r.URL.Query().Get("namespace"), r.URL.Query().Get("user_id"))
+		var out bankcredit.CurrentState
+		var err error
+		if options.Clock == nil {
+			out, err = store.CurrentIncomeState(r.Context(), r.URL.Query().Get("namespace"), r.URL.Query().Get("user_id"))
+		} else {
+			out, err = store.CurrentIncomeStateAt(r.Context(), r.URL.Query().Get("namespace"), r.URL.Query().Get("user_id"), options.Clock())
+		}
 		if err != nil {
 			creditHTTPError(w, err)
 			return

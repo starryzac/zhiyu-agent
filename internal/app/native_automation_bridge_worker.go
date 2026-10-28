@@ -229,7 +229,18 @@ func (s *Service) validateStandingBridge(ctx context.Context, tx pgx.Tx, p Princ
 		return e
 	}
 	d := g.Dependencies
-	if fv != d.FundsVersion+uint64(number) || sv != d.SourceEvidenceVersion+uint64(number-1) || wg != d.WriterGeneration || cv != d.ControlVersion {
+	expectedFV, expectedSV := d.FundsVersion+uint64(number), d.SourceEvidenceVersion+uint64(number-1)
+	if !reserved {
+		// The only unreserved caller continues the preceding T3 under the
+		// same user lock. Its receipt is present; its FV/SV publication waits
+		// until this exact next reservation (or cancellation) is persisted.
+		if number < 2 {
+			return reject("EVIDENCE_INVALID", nil)
+		}
+		expectedFV--
+		expectedSV--
+	}
+	if fv != expectedFV || sv != expectedSV || wg != d.WriterGeneration || cv != d.ControlVersion {
 		return reject("SOURCE_CHANGED", nil)
 	}
 	if _, e = standingBridgePrefix(ctx, tx, p, g, number-1); e != nil {
@@ -329,6 +340,9 @@ func (s *Service) cancelStandingBridgeSuffix(ctx context.Context, tx pgx.Tx, p P
 			}
 		}
 		if _, e = tx.Exec(ctx, `UPDATE native_operations SET status='CANCELLED',processing_health=$4,version=version+1,updated_at=$5 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), step.OperationID.String(), reason, s.now()); e != nil {
+			return e
+		}
+		if e = s.recordNativeCancellation(ctx, tx, p, step.OperationID, reason); e != nil {
 			return e
 		}
 		if _, e = tx.Exec(ctx, `UPDATE native_jobs SET state='FINISHED',lease_owner=NULL,lease_until=NULL,last_error=$4 WHERE environment_id=$1 AND user_id=$2 AND operation_id=$3`, p.EnvironmentID.String(), p.UserID.String(), step.OperationID.String(), reason); e != nil {

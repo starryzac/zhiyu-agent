@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 	"unicode/utf8"
 
@@ -111,24 +112,26 @@ func (turn *Turn) UnmarshalJSON(raw []byte) error {
 }
 
 type Observation struct {
-	Tool              string               `json:"tool"`
-	AsOf              time.Time            `json:"as_of"`
-	Summary           string               `json:"summary"`
-	VerificationScope string               `json:"verification_scope"`
-	References        []Reference          `json:"references"`
-	Accounts          []Account            `json:"accounts,omitempty"`
-	Goals             []Goal               `json:"goals,omitempty"`
-	Policies          []Policy             `json:"policies,omitempty"`
-	Grants            []Grant              `json:"grants,omitempty"`
-	Operations        []Operation          `json:"operations,omitempty"`
-	Candidate         *Candidate           `json:"candidate,omitempty"`
-	NativeCandidate   *TemplateCandidate   `json:"native_candidate,omitempty"`
-	NativeRules       []NativeRule         `json:"native_rules,omitempty"`
-	Catalog           []TemplateDescriptor `json:"catalog,omitempty"`
-	Forecast          *ForecastObservation `json:"forecast,omitempty"`
-	Joint             *JointObservation    `json:"joint,omitempty"`
-	Object            *ObjectObservation   `json:"object,omitempty"`
-	Objects           []ObjectObservation  `json:"objects,omitempty"`
+	Tool              string                 `json:"tool"`
+	AsOf              time.Time              `json:"as_of"`
+	Summary           string                 `json:"summary"`
+	VerificationScope string                 `json:"verification_scope"`
+	References        []Reference            `json:"references"`
+	Accounts          []Account              `json:"accounts,omitempty"`
+	Goals             []Goal                 `json:"goals,omitempty"`
+	Policies          []Policy               `json:"policies,omitempty"`
+	Grants            []Grant                `json:"grants,omitempty"`
+	Operations        []Operation            `json:"operations,omitempty"`
+	Candidate         *Candidate             `json:"candidate,omitempty"`
+	NativeCandidate   *TemplateCandidate     `json:"native_candidate,omitempty"`
+	NativeRules       []NativeRule           `json:"native_rules,omitempty"`
+	NativeGrants      *NativeGrantCollection `json:"native_grants,omitempty"`
+	NativeGrant       *NativeGrantDisplay    `json:"native_grant,omitempty"`
+	Catalog           []TemplateDescriptor   `json:"catalog,omitempty"`
+	Forecast          *ForecastObservation   `json:"forecast,omitempty"`
+	Joint             *JointObservation      `json:"joint,omitempty"`
+	Object            *ObjectObservation     `json:"object,omitempty"`
+	Objects           []ObjectObservation    `json:"objects,omitempty"`
 }
 type ToolSchema struct {
 	Name        string          `json:"name"`
@@ -143,7 +146,7 @@ func Registry() []ToolSchema {
 	operation := json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{"operation_id":{"type":"string","format":"uuid"}},"required":["operation_id"]}`)
 	legacy := []ToolSchema{
 		{"funds_summary", "Read owned current account display values; no safe execution amount is inferred.", append(json.RawMessage(nil), empty...)},
-		{"current_rules", "Read owned current policy and grant display values; do not grant authority.", append(json.RawMessage(nil), empty...)},
+		{"current_rules", "Read only current simple single-goal policy and grant display values. Native template rules use native_rules. Native standing grants are not fully read here; check the rules page. Never grant or restore authority.", append(json.RawMessage(nil), empty...)},
 		{"goal_status", "Read one existing owned goal by exact reference.", append(json.RawMessage(nil), goal...)},
 		{"operation_status", "Read one existing owned original operation; UNKNOWN remains unresolved.", operation},
 		{"policy_candidate", "Suggest an existing single goal form; user must supply fields and confirm separately.", append(json.RawMessage(nil), goal...)},
@@ -377,7 +380,7 @@ func Observe(s Snapshot, call ToolCall) (Observation, error) {
 		v.References = append(v.References, makeRef("ACCOUNTS", s.Scope.UserID.String(), s.Accounts))
 	case "current_rules":
 		v.Policies, v.Grants = append([]Policy(nil), s.Policies...), append([]Grant(nil), s.Grants...)
-		v.Summary = fmt.Sprintf("已读取 %d 条当前规则与 %d 条持续授权的显示状态。此读取不新增或恢复授权，撤销后的在途原操作仍须核对。", len(s.Policies), len(s.Grants))
+		v.Summary = fmt.Sprintf("简式单目标规则与授权范围：已读取 %d 条规则与 %d 条持续授权的显示状态。原生模板规则请使用“读取现行原生规则”；原生持续授权未在此完整读取，请到规则页核对。此读取不新增或恢复授权，撤销后的在途原操作仍须核对。", len(s.Policies), len(s.Grants))
 		for _, x := range s.Policies {
 			v.References = append(v.References, makeRef("POLICY", x.ID, x))
 		}
@@ -445,11 +448,11 @@ func CheckReferences(scope Scope, fresh Snapshot, observations []Observation) er
 
 // CloneSnapshot severs mutable slice aliases supplied by adapters/providers.
 func CloneSnapshot(s Snapshot) Snapshot {
-	s.Accounts = append([]Account(nil), s.Accounts...)
-	s.Goals = append([]Goal(nil), s.Goals...)
-	s.Policies = append([]Policy(nil), s.Policies...)
-	s.Grants = append([]Grant(nil), s.Grants...)
-	s.Operations = append([]Operation(nil), s.Operations...)
+	s.Accounts = slices.Clone(s.Accounts)
+	s.Goals = slices.Clone(s.Goals)
+	s.Policies = slices.Clone(s.Policies)
+	s.Grants = slices.Clone(s.Grants)
+	s.Operations = slices.Clone(s.Operations)
 	s.Native = cloneNative(s.Native)
 	return s
 }

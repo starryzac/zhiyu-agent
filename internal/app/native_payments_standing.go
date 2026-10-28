@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"zhiyu.local/zhiyu-go/internal/adapters/postgres"
+	"zhiyu.local/zhiyu-go/internal/execution/bankcredit"
 	"zhiyu.local/zhiyu-go/internal/execution/bankv2"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 	policy "zhiyu.local/zhiyu-go/internal/policy/domain"
@@ -68,7 +69,14 @@ func standingPaymentAuthority(grant NativeStandingGrant, source policy.NativeOcc
 // The bank snapshot is collected outside the environment/user lock. Discovery
 // records the fixed due/prepare instants and original liability identity, never
 // the changing observation clock, and never creates money or permission.
-func (s *Service) discoverNativePaymentOccurrences(ctx context.Context) (int, error) {
+func (s *Service) discoverNativePaymentOccurrences(ctx context.Context) (discovered int, discoveryErr error) {
+	defer func() {
+		if discoveryErr != nil {
+			if idle := s.daemonIdle(); idle != nil {
+				idle.forgetAllPayment()
+			}
+		}
+	}()
 	rows, e := s.Pool.Query(ctx, `SELECT g.environment_id::text,g.user_id::text,g.id::text FROM native_grants g JOIN environments e ON(e.id=g.environment_id) WHERE e.namespace=$1 AND g.family='PERIODIC_PAYMENT' AND g.expires_at>clock_timestamp() ORDER BY g.id LIMIT 65`, s.Namespace)
 	if e != nil {
 		return 0, e
@@ -125,6 +133,14 @@ func (s *Service) discoverNativePaymentOccurrences(ctx context.Context) (int, er
 }
 
 func (s *Service) registerStandingPaymentSources(ctx context.Context, p Principal, id funds.ID, bank bankv2.LiabilitySnapshot, now time.Time) (int, error) {
+	idle := s.daemonIdle()
+	idleID := p.EnvironmentID.String() + "/" + p.UserID.String() + "/" + id.String()
+	keepCursor := false
+	defer func() {
+		if idle != nil && !keepCursor {
+			idle.forget(idle.payment, idleID)
+		}
+	}()
 	tx, e := s.begin(ctx)
 	if e != nil {
 		return 0, e
@@ -145,6 +161,9 @@ func (s *Service) registerStandingPaymentSources(ctx context.Context, p Principa
 		return 0, e
 	}
 	if grant.Grant.Terms.Family != policy.NativePeriodicPayment || grant.State != "ACTIVE" || now.Before(grant.Grant.Terms.EffectiveFrom) || !now.Before(grant.Grant.Terms.ExpiresAt) {
+		if idle != nil {
+			idle.forget(idle.payment, idleID)
+		}
 		return 0, tx.Commit(ctx)
 	}
 	// Discovery may run again before the separate financial worker reaches T2.
@@ -157,7 +176,21 @@ func (s *Service) registerStandingPaymentSources(ctx context.Context, p Principa
 		return 0, e
 	}
 	if pending {
+		if idle != nil {
+			idle.forget(idle.payment, idleID)
+		}
 		return 0, tx.Commit(ctx)
+	}
+	// Only this daemon discovery can skip duplicate negative scheduling. Every
+	// public preview/Import and actual T1/T2 retains its original fresh path.
+	if idle != nil {
+		key, _, x := s.nativePaymentIdleKey(ctx, tx, p, grant, bank, now)
+		if x == nil && idle.cursor(idle.payment, idleID, key, nil, now) {
+			e = tx.Commit(ctx)
+			keepCursor = e == nil
+			return 0, e
+		}
+		idle.forget(idle.payment, idleID)
 	}
 	if _, e = s.refreshTemplateProtection(ctx, tx, p, grant.Grant.Terms.Timezone); e != nil {
 		return 0, e
@@ -225,7 +258,19 @@ func (s *Service) registerStandingPaymentSources(ctx context.Context, p Principa
 			}
 		}
 	}
-	return count, tx.Commit(ctx)
+	// Prime only after the unchanged full discovery and its publication have
+	// committed successfully. Failures and pending returns never prime.
+	key, boundary, x := s.nativePaymentIdleKey(ctx, tx, p, grant, bank, now)
+	e = tx.Commit(ctx)
+	fullDone := time.Time{}
+	if e == nil && idle != nil {
+		fullDone = idle.wallNow()
+	}
+	post := s.now()
+	if e == nil && x == nil && idle != nil && !post.Before(now) && post.Before(boundary) {
+		keepCursor = idle.remember(idle.payment, idleID, key, bankcredit.ObservationHead{}, now, boundary, fullDone)
+	}
+	return count, e
 }
 
 // T1 is a private SYSTEM admission. It consumes an authenticated immutable USER

@@ -78,7 +78,8 @@ func (s *Service) templateContributionEvidence(ctx context.Context, tx pgx.Tx, p
 			}
 		}
 	}
-	for _, raw := range snapshot.Raw["native_receipts"] {
+	nativeOperations := templateNativeOperationReader{ctx: ctx, tx: tx, p: p, raw: snapshot.Raw["native_receipts"]}
+	for i, raw := range snapshot.Raw["native_receipts"] {
 		var row struct {
 			ID          funds.ID `json:"id"`
 			OperationID funds.ID `json:"operation_id"`
@@ -95,14 +96,13 @@ func (s *Service) templateContributionEvidence(ctx context.Context, tx pgx.Tx, p
 			return nil, nil, reject("TEMPLATE_CONTRIBUTION_EVIDENCE_INVALID", err)
 		}
 		request := *receipt.BankResult.Request
-		var hash, state string
-		var receiptID *string
-		if err = tx.QueryRow(ctx, `SELECT bank_request_hash::text,status,receipt_id::text FROM native_operations WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), row.OperationID.String()).Scan(&hash, &state, &receiptID); err != nil {
+		projection, err := nativeOperations.row(i, row.OperationID)
+		if err != nil {
 			return nil, nil, reject("TEMPLATE_CONTRIBUTION_EVIDENCE_INVALID", err)
 		}
 		requestHash, err := request.Digest()
 		result := receipt.BankResult
-		if err != nil || hash != requestHash || state != "SETTLED" || receiptID == nil || *receiptID != receipt.ID.String() || request.UserID != p.UserID.String() || request.Namespace != s.Namespace || request.OperationID != row.OperationID.String() || result.Status != bankv2.Settled || bankv2.VerifyResult(request, result) != nil || result.SettledAt == nil || receipt.RecordedAt.Before(*result.SettledAt) || receipt.RecordedAt.After(snapshot.AsOf) {
+		if err != nil || projection.hash != requestHash || projection.state != "SETTLED" || projection.receiptID == nil || *projection.receiptID != receipt.ID.String() || request.UserID != p.UserID.String() || request.Namespace != s.Namespace || request.OperationID != row.OperationID.String() || result.Status != bankv2.Settled || bankv2.VerifyResult(request, result) != nil || result.SettledAt == nil || receipt.RecordedAt.Before(*result.SettledAt) || receipt.RecordedAt.After(snapshot.AsOf) {
 			return nil, nil, reject("TEMPLATE_CONTRIBUTION_EVIDENCE_INVALID", err)
 		}
 		if request.Effect.Kind == bankv2.Allocate || request.Effect.Kind == bankv2.MoveGoal {

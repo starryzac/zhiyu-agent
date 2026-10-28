@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	executionaudit "zhiyu.local/zhiyu-go/internal/execution/audit"
 	execution "zhiyu.local/zhiyu-go/internal/execution/domain"
+	"zhiyu.local/zhiyu-go/internal/execution/fundswitness"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 	planning "zhiyu.local/zhiyu-go/internal/planning/domain"
 	policy "zhiyu.local/zhiyu-go/internal/policy/domain"
@@ -283,10 +284,13 @@ func (s *Service) cancelBeforePermit(ctx context.Context, tx pgx.Tx, c Claim, re
 	if err = s.Store.SaveLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, "UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2", p.EnvironmentID.String(), p.UserID.String()); err != nil {
+	if _, err = tx.Exec(ctx, "UPDATE operations SET status='CANCELLED',processing_health=$4,updated_at=$5,version=version+1 WHERE environment_id=$1 AND user_id=$2 AND id=$3", p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), reason, s.now()); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(ctx, "UPDATE operations SET status='CANCELLED',processing_health=$4,updated_at=$5,version=version+1 WHERE environment_id=$1 AND user_id=$2 AND id=$3", p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), reason, s.now()); err != nil {
+	if err = s.recordFundsTerminalDecision(ctx, tx, p, "LEGACY", c.OperationID, "CANCELLED", fundswitness.Cause{Kind: fundswitness.UnsupportedCause, Code: reason}); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(ctx, "UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2", p.EnvironmentID.String(), p.UserID.String()); err != nil {
 		return err
 	}
 	_, err = tx.Exec(ctx, "UPDATE jobs SET state='DONE',lease_owner=NULL,lease_until=NULL,last_error=$4 WHERE environment_id=$1 AND user_id=$2 AND id=$3", p.EnvironmentID.String(), p.UserID.String(), c.JobID.String(), reason)
@@ -391,6 +395,7 @@ func (s *Service) recordFailure(ctx context.Context, c Claim, cause error) error
 }
 
 func (s *Service) RunWorker(ctx context.Context, owner string) error {
+	var databaseFailures uint
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil
@@ -400,6 +405,9 @@ func (s *Service) RunWorker(ctx context.Context, owner string) error {
 			nativeWorked, nativeErr := s.NativeWorkerStep(ctx, owner, 30*time.Second)
 			worked = worked || nativeWorked
 			err = nativeErr
+		}
+		if retryBackgroundDatabase(ctx, err, &databaseFailures) {
+			continue
 		}
 		if err != nil && errors.Is(err, ErrClaimLost) {
 			continue

@@ -125,16 +125,32 @@ func (s *Service) retryNativeIncomeIntake(ctx context.Context, c nativeIncomeInt
 // Bank I/O remains outside all financial locks. The exact PG lease is checked
 // again under the common user lock and atomically completed with any import.
 func (s *Service) NativeIncomeIntakeStep(ctx context.Context, owner string, lease time.Duration) (bool, error) {
+	idle := s.daemonIdle()
 	if s.NativeIncomeSources == nil {
 		return false, nil
 	}
 	c, e := s.claimNativeIncomeIntake(ctx, owner, lease)
 	if e != nil || c == nil {
+		if e != nil && idle != nil {
+			idle.forgetAllIncome()
+		}
 		return false, e
 	}
-	_, e = s.importNativeIncomeClaimed(ctx, c.Principal, *s.NativeIncomeSources, true, c)
+	head, canObserve := s.nativeIdleHead(ctx, c.Principal)
+	if canObserve && s.trySkipNativeIncomeIntake(ctx, *c, head) {
+		return true, nil
+	}
+	s.forgetNativeIncomeIntake(c.Principal)
+	result, e := s.importNativeIncomeClaimed(ctx, c.Principal, *s.NativeIncomeSources, true, c)
+	fullDone := time.Time{}
+	if e == nil && idle != nil {
+		fullDone = idle.wallNow()
+	}
 	if e != nil {
 		return true, s.retryNativeIncomeIntake(ctx, *c, e)
+	}
+	if canObserve {
+		s.rememberNativeIncomeIntake(ctx, *c, head, result, fullDone)
 	}
 	return true, nil
 }

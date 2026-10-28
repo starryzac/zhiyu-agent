@@ -661,11 +661,15 @@ func (s *Service) SetStandingPaused(ctx context.Context, paused bool) error {
 }
 
 func (s *Service) RunStanding(ctx context.Context, owner string) error {
+	var databaseFailures uint
 	for {
 		if ctx.Err() != nil {
 			return nil
 		}
 		worked, err := s.StandingStep(ctx, owner, 30*time.Second)
+		if retryBackgroundDatabase(ctx, err, &databaseFailures) {
+			continue
+		}
 		if err != nil && !errors.Is(err, ErrStandingClaimLost) {
 			return err
 		}

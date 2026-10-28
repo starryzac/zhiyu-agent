@@ -62,6 +62,8 @@ type templateSnapshot struct {
 	Timezone                         string
 	Raw                              map[string][]string
 	Native                           *postgres.NativeLedger
+	SourceWitnessEnabled             bool
+	SourceBasisOriginal              []byte
 }
 
 func templateTimezone(value string) (string, error) {
@@ -161,6 +163,7 @@ var templateSourceTables = []struct{ name, order string }{
 }
 
 func (s *Service) loadTemplateSnapshot(ctx context.Context, tx pgx.Tx, p Principal, now time.Time, timezone string) (templateSnapshot, error) {
+	loadTemplateSnapshotAttempts.Add(1)
 	out := templateSnapshot{AsOf: now, Timezone: timezone, Raw: map[string][]string{}}
 	env, err := s.environment(ctx, tx, false)
 	if err != nil {
@@ -189,6 +192,15 @@ func (s *Service) loadTemplateSnapshot(ctx context.Context, tx pgx.Tx, p Princip
 	}
 	if nativeEnabled {
 		tables = append(tables, templateNativeSourceTables...)
+	}
+	out.SourceWitnessEnabled, err = templateSourceWitnessEnabled(ctx, tx)
+	if err != nil {
+		return out, err
+	}
+	if out.SourceWitnessEnabled {
+		// The previous basis omitted these rows although LoadLedger unions
+		// them. Forward originals retain the complete native income prefix.
+		tables = append(tables, struct{ name, order string }{"native_income_reservations", "action_id"}, struct{ name, order string }{"native_income_claims", "action_id,fragment_id"})
 	}
 	var paymentEnabled bool
 	if err = tx.QueryRow(ctx, `SELECT to_regclass('native_obligation_payments') IS NOT NULL`).Scan(&paymentEnabled); err != nil {
@@ -400,6 +412,7 @@ func (s *Service) loadTemplateSnapshot(ctx context.Context, tx pgx.Tx, p Princip
 		return out, err
 	}
 	out.Facts.SourceHash = Hash(raw)
+	out.SourceBasisOriginal = append([]byte(nil), raw...)
 	// This is a deterministic current boundary/action fingerprint, not evidence
 	// that the user was asked, answered, or authorized anything.
 	actionsRaw, err := encode(struct{ Reservations, Holds []string }{out.Raw["income_reservations"], out.Raw["native_holds"]})
@@ -776,7 +789,15 @@ func (s *Service) refreshTemplateProtection(ctx context.Context, tx pgx.Tx, p Pr
 	if err != nil {
 		return view, err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO template_protection_publications(environment_id,user_id,source_version,basis_hash,local_date,timezone,input_original,input_hash,result_original,result_hash,protection_hash,created_at) VALUES($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11,$12)`, p.EnvironmentID.String(), p.UserID.String(), sv, basis, today, timezone, inputRaw, Hash(inputRaw), resultRaw, Hash(resultRaw), Hash(raw), snapshot.AsOf)
+	witnessID, witnessHash, err := s.saveTemplateSourceWitness(ctx, tx, p, snapshot)
+	if err != nil {
+		return view, err
+	}
+	if snapshot.SourceWitnessEnabled {
+		_, err = tx.Exec(ctx, `INSERT INTO template_protection_publications(environment_id,user_id,source_version,basis_hash,local_date,timezone,input_original,input_hash,result_original,result_hash,protection_hash,created_at,source_witness_id,source_witness_hash) VALUES($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, p.EnvironmentID.String(), p.UserID.String(), sv, basis, today, timezone, inputRaw, Hash(inputRaw), resultRaw, Hash(resultRaw), Hash(raw), snapshot.AsOf, witnessID.String(), witnessHash)
+	} else {
+		_, err = tx.Exec(ctx, `INSERT INTO template_protection_publications(environment_id,user_id,source_version,basis_hash,local_date,timezone,input_original,input_hash,result_original,result_hash,protection_hash,created_at) VALUES($1,$2,$3,$4,$5::date,$6,$7,$8,$9,$10,$11,$12)`, p.EnvironmentID.String(), p.UserID.String(), sv, basis, today, timezone, inputRaw, Hash(inputRaw), resultRaw, Hash(resultRaw), Hash(raw), snapshot.AsOf)
+	}
 	if err != nil {
 		return view, err
 	}

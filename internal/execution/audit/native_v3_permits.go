@@ -87,6 +87,12 @@ func (g *nativeGraphV3) jointWitnessV3(op *ledgerRow, plan wireNativeJointPlan, 
 	if err = g.frozenForecastV3(w.ForecastInput, result, w.SourceVersion); err != nil {
 		return err
 	}
+	dependencies := plan.Dependencies
+	dependencies.FundsVersion, dependencies.SourceEvidenceVersion = w.FundsVersion, w.SourceVersion
+	dependencies.WriterGeneration, dependencies.ControlVersion = w.WriterGeneration, w.ControlVersion
+	if err := g.queueForecastEconomyV3(w.ForecastInput, dependencies, nil); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -135,6 +141,9 @@ func (g *nativeGraphV3) checkPermitsV3() error {
 				}
 			}
 		case "native-standing-asset-v1/permit":
+			if raw := nativeRawV3(row, "original"); len(raw) < 1 || len(raw) > nativeStandingAssetPermitStoredLimitV3 {
+				return businessInvalid("native standing asset v1 stored capacity")
+			}
 			var p wirenativeStandingAssetProof
 			nativeOriginalV3(row, "original", &p)
 			plan := g.standingPlans[id]
@@ -158,10 +167,18 @@ func (g *nativeGraphV3) checkPermitsV3() error {
 			if !exactJSON(expected, request) || policy.AuthorizeNativeStanding(p.Grant.Terms, "ACTIVE", f.Authority, f.Usage, p.DecisionAt) != nil {
 				return businessInvalid("native standing asset exact T2 request/source/budget")
 			}
-			if _, err := g.frozenLedgerV3(p.Current.Ledger, p.DecisionAt, mustBusinessID(id)); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Current.Ledger, p.DecisionAt, mustBusinessID(id))
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Current.ForecastInput, p.Current.ForecastBefore, p.Current.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Current.ForecastInput, p.Current.ForecastBefore, ledger, p.Current.Dependencies, mustBusinessID(id)); err != nil {
+				return err
+			}
+		case "native-standing-asset-v2/permit":
+			if raw := nativeRawV3(row, "original"); len(raw) < 1 || len(raw) > nativeStandingAssetPermitStoredLimitV3 {
+				return businessInvalid("native standing asset v2 stored capacity")
+			}
+			if err := g.checkStandingAssetPermitV2V3(row, request, id, op); err != nil {
 				return err
 			}
 		case "native-automation-v1/payment-submission-permit":
@@ -184,10 +201,11 @@ func (g *nativeGraphV3) checkPermitsV3() error {
 			if err := mirrorvalidateStandingPaymentProofV3(*f, plan.hash, p, request); err != nil {
 				return nativeMirrorCheckV3("standing payment T2", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Current.Ledger, p.DecisionAt, mustBusinessID(id)); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Current.Ledger, p.DecisionAt, mustBusinessID(id))
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Current.ForecastInput, p.Current.ForecastBefore, p.Current.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Current.ForecastInput, p.Current.ForecastBefore, ledger, p.Current.Dependencies, mustBusinessID(id)); err != nil {
 				return err
 			}
 		case "native-submission-permit-v1":
@@ -220,10 +238,11 @@ func (g *nativeGraphV3) checkPermitsV3() error {
 			if err := mirrorassetValidateWitnessV3(preview, approval, p.Witness, p.DecisionAt); err != nil {
 				return nativeMirrorCheckV3("asset T2", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Witness.Current.Ledger, p.DecisionAt, mustBusinessID(id)); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Witness.Current.Ledger, p.DecisionAt, mustBusinessID(id))
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Witness.Current.ForecastInput, p.Witness.Current.ForecastBefore, p.Witness.SourceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Witness.Current.ForecastInput, p.Witness.Current.ForecastBefore, ledger, p.Witness.Current.Dependencies, mustBusinessID(id)); err != nil {
 				return err
 			}
 		case "native-payment-submission-permit-v1":
@@ -240,10 +259,11 @@ func (g *nativeGraphV3) checkPermitsV3() error {
 			if err := mirrorvalidatePaymentProofV3(preview, p, request); err != nil {
 				return nativeMirrorCheckV3("payment T2", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Current.Ledger, p.DecisionAt, mustBusinessID(id)); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Current.Ledger, p.DecisionAt, mustBusinessID(id))
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Current.ForecastInput, p.Current.ForecastBefore, p.Current.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Current.ForecastInput, p.Current.ForecastBefore, ledger, p.Current.Dependencies, mustBusinessID(id)); err != nil {
 				return err
 			}
 		case "native-goal-transfer-submission-permit-v1":
@@ -259,6 +279,12 @@ func (g *nativeGraphV3) checkPermitsV3() error {
 			}
 			if err := mirrorgoalTransferValidateWitnessV3(preview, approval, p.Witness, p.DecisionAt); err != nil {
 				return nativeMirrorCheckV3("paired transfer T2", err)
+			}
+			dependencies := preview.Dependencies
+			dependencies.FundsVersion, dependencies.SourceEvidenceVersion = p.Witness.FundsVersion, p.Witness.SourceVersion
+			dependencies.WriterGeneration, dependencies.ControlVersion = p.Witness.WriterGeneration, p.Witness.ControlVersion
+			if err := g.queueForecastEconomyV3(p.Witness.ForecastInput, dependencies, nil, mustBusinessID(id)); err != nil {
+				return err
 			}
 			if err := g.frozenForecastV3(p.Witness.ForecastInput, p.Witness.ForecastBefore, p.Witness.SourceVersion); err != nil {
 				return err

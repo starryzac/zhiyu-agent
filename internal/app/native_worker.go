@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"zhiyu.local/zhiyu-go/internal/execution/bankv2"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 	planning "zhiyu.local/zhiyu-go/internal/planning/domain"
@@ -259,6 +260,16 @@ func (s *Service) nativePermit(ctx context.Context, c Claim) (nativePermitted, e
 // key must not prevent querying and booking a bank fact under yesterday's key.
 // The stored request and signature are never replaced or signed again.
 func nativeStoredPermit(ctx context.Context, q queryRow, p Principal, operation funds.ID, request bankv2.Request, signature string) error {
+	return nativeStoredPermitRead(ctx, q, p, operation, request, signature, nil)
+}
+
+// NativeActivityOriginal alone obtains this concrete transaction from its
+// RepeatableRead ReadOnly Pool.BeginTx. Other callers retain both full reads.
+func nativeActivityStoredPermit(ctx context.Context, tx *pgxpool.Tx, p Principal, operation funds.ID, request bankv2.Request, signature string) error {
+	return nativeStoredPermitRead(ctx, tx, p, operation, request, signature, tx)
+}
+
+func nativeStoredPermitRead(ctx context.Context, q queryRow, p Principal, operation funds.ID, request bankv2.Request, signature string, activityTx *pgxpool.Tx) error {
 	var raw []byte
 	var rawHash, requestHash, effectHash, signatureHash, permitID string
 	err := q.QueryRow(ctx, `SELECT original,original_hash,bank_request_hash,effect_hash,signature_hash,permit_id::text FROM native_submission_permits WHERE environment_id=$1 AND user_id=$2 AND operation_id=$3`, p.EnvironmentID.String(), p.UserID.String(), operation.String()).Scan(&raw, &rawHash, &requestHash, &effectHash, &signatureHash, &permitID)
@@ -292,7 +303,10 @@ func nativeStoredPermit(ctx context.Context, q queryRow, p Principal, operation 
 	if protocol.Protocol == nativeStandingBridgePermitProtocol {
 		return standingBridgeStoredPermit(ctx, q, p, operation, request, signature)
 	}
-	if protocol.Protocol == nativeAssetPermitProtocol || protocol.Protocol == nativeStandingAssetProtocol+"/permit" {
+	if protocol.Protocol == nativeAssetPermitProtocol || protocol.Protocol == nativeStandingAssetProtocol+"/permit" || protocol.Protocol == nativeStandingAssetPermitV2Protocol {
+		if fact := captureNativeActivityPermitRaw(q, activityTx, p, operation, request.Effect.Kind, raw); fact != nil {
+			return assetStoredPermitWithActivityRaw(ctx, q, p, operation, request, signature, fact)
+		}
 		return assetStoredPermit(ctx, q, p, operation, request, signature)
 	}
 	if Hash(raw) != rawHash || decode(raw, &proof) != nil || (proof.Protocol != "native-submission-permit-v1" && proof.Protocol != "native-submission-permit-v2") || proof.OperationID != operation || proof.PermitID != permitID || permitID != request.PermitID || requestHash != want || effectHash != effect || signatureHash != Hash([]byte(signature)) || proof.BankRequestHash != requestHash || proof.EffectHash != effectHash || proof.SignatureHash != signatureHash || proof.DecisionAt.Before(request.RequestedAt) || !proof.DecisionAt.Before(request.ExpiresAt) {
@@ -402,6 +416,9 @@ func (s *Service) cancelNativeUnsigned(ctx context.Context, tx pgx.Tx, c Claim, 
 		return err
 	}
 	if err = s.Store.PersistNativeLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); err != nil {
+		return err
+	}
+	if err = s.recordNativeCancellation(ctx, tx, p, c.OperationID, reason); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {

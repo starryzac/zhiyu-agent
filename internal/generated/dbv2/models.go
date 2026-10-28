@@ -124,6 +124,36 @@ type EvidenceBlob struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type FundsCommitProjectionCache struct {
+	EnvironmentID pgtype.UUID `json:"environment_id"`
+	UserID        pgtype.UUID `json:"user_id"`
+	FundsVersion  int64       `json:"funds_version"`
+	FinancialRows []byte      `json:"financial_rows"`
+	StateHash     string      `json:"state_hash"`
+}
+
+type FundsCommitWitness struct {
+	EnvironmentID        pgtype.UUID `json:"environment_id"`
+	UserID               pgtype.UUID `json:"user_id"`
+	FundsVersion         int64       `json:"funds_version"`
+	PreviousFundsVersion pgtype.Int8 `json:"previous_funds_version"`
+	Original             []byte      `json:"original"`
+	OriginalHash         string      `json:"original_hash"`
+}
+
+type FundsTerminalDecision struct {
+	EnvironmentID        pgtype.UUID        `json:"environment_id"`
+	UserID               pgtype.UUID        `json:"user_id"`
+	ID                   pgtype.UUID        `json:"id"`
+	LedgerKind           string             `json:"ledger_kind"`
+	OperationID          pgtype.UUID        `json:"operation_id"`
+	PreviousFundsVersion int64              `json:"previous_funds_version"`
+	TerminalFundsVersion int64              `json:"terminal_funds_version"`
+	Original             []byte             `json:"original"`
+	OriginalHash         string             `json:"original_hash"`
+	RecordedAt           pgtype.Timestamptz `json:"recorded_at"`
+}
+
 type Goal struct {
 	EnvironmentID         pgtype.UUID `json:"environment_id"`
 	UserID                pgtype.UUID `json:"user_id"`
@@ -1330,18 +1360,32 @@ type TemplatePolicyVersion struct {
 }
 
 type TemplateProtectionPublication struct {
-	EnvironmentID  pgtype.UUID        `json:"environment_id"`
-	UserID         pgtype.UUID        `json:"user_id"`
-	SourceVersion  int64              `json:"source_version"`
-	BasisHash      string             `json:"basis_hash"`
-	LocalDate      pgtype.Date        `json:"local_date"`
-	Timezone       string             `json:"timezone"`
-	InputOriginal  []byte             `json:"input_original"`
-	InputHash      string             `json:"input_hash"`
-	ResultOriginal []byte             `json:"result_original"`
-	ResultHash     string             `json:"result_hash"`
-	ProtectionHash string             `json:"protection_hash"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	EnvironmentID     pgtype.UUID        `json:"environment_id"`
+	UserID            pgtype.UUID        `json:"user_id"`
+	SourceVersion     int64              `json:"source_version"`
+	BasisHash         string             `json:"basis_hash"`
+	LocalDate         pgtype.Date        `json:"local_date"`
+	Timezone          string             `json:"timezone"`
+	InputOriginal     []byte             `json:"input_original"`
+	InputHash         string             `json:"input_hash"`
+	ResultOriginal    []byte             `json:"result_original"`
+	ResultHash        string             `json:"result_hash"`
+	ProtectionHash    string             `json:"protection_hash"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	SourceWitnessID   pgtype.UUID        `json:"source_witness_id"`
+	SourceWitnessHash interface{}        `json:"source_witness_hash"`
+}
+
+type TemplateSourceWitness struct {
+	EnvironmentID pgtype.UUID        `json:"environment_id"`
+	UserID        pgtype.UUID        `json:"user_id"`
+	ID            pgtype.UUID        `json:"id"`
+	FundsVersion  int64              `json:"funds_version"`
+	SourceVersion int64              `json:"source_version"`
+	SourceHash    string             `json:"source_hash"`
+	Original      []byte             `json:"original"`
+	OriginalHash  string             `json:"original_hash"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 type User struct {

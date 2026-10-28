@@ -1,14 +1,37 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	evidence "zhiyu.local/zhiyu-go/internal/audit"
 	policy "zhiyu.local/zhiyu-go/internal/policy/domain"
 )
+
+// The issuer's envelope is transport JSON and may be pretty-printed. Only the
+// signed inner raw bytes are canonical authority. Never normalize those bytes
+// or apply the application's compact-original rule to the external wrapper.
+func parseForecastHistoryEnvelope(raw []byte) (policy.HistoryStatementEnvelope, error) {
+	var envelope policy.HistoryStatementEnvelope
+	invalid := reject("HISTORY_SOURCE_INVALID", nil)
+	if len(raw) == 0 || len(raw) > 2*policy.MaxHistoryStatementBytes+4096 {
+		return envelope, invalid
+	}
+	if _, err := evidence.ParseRawObject(raw); err != nil {
+		return envelope, invalid
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	if d.Decode(&envelope) != nil || d.Decode(new(any)) != io.EOF {
+		return envelope, invalid
+	}
+	return envelope, nil
+}
 
 type forecastHistoryFileReader struct{ root, path string }
 

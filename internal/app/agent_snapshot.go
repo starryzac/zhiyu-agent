@@ -185,9 +185,15 @@ func (s *Service) AgentSnapshot(ctx context.Context, p Principal) (agent.Snapsho
 	} else {
 		f := snapshot.forecastInput(365)
 		n.Forecast = &f
+		n.BankNamespace = s.Namespace
 		n.SourceHash = snapshot.Facts.SourceHash
 		n.InventoryHash = Hash(snapshot.InventoryRaw)
 		n.Unavailable = ""
+		payees, err := agentKnownBillPayees(snapshot, s.Namespace)
+		if err != nil {
+			return out, err
+		}
+		n.Objects = append(n.Objects, payees...)
 		goals, _, goalErr := nativeJointGoals(snapshot)
 		if goalErr == nil {
 			cash, err := nativeJointCash(snapshot)
@@ -265,6 +271,10 @@ func (s *Service) AgentSnapshot(ctx context.Context, p Principal) (agent.Snapsho
 		if e != nil {
 			return out, e
 		}
+	}
+	n.NativeGrants, e = s.loadAgentNativeGrants(ctx, tx, p, out, views)
+	if e != nil {
+		return out, e
 	}
 	out.Native = n
 	if e = out.Validate(out.Scope); e != nil {

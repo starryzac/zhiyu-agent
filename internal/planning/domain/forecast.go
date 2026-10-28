@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"bytes"
 	"errors"
 	"sort"
 	"strconv"
@@ -160,6 +161,12 @@ func forecastSettlement(f policy.TemplateFacts, policyID funds.ID, period string
 	return total.Sub(found.Paid)
 }
 
+// Canonical UUID text has fixed separators and monotone lowercase hex digits,
+// so its lexicographic order is exactly the underlying 16-byte order.
+func forecastIDLess(a, b funds.ID) bool {
+	return bytes.Compare(a[:], b[:]) < 0
+}
+
 // normalizedForecast copies slices before ordering; all business instants are
 // UTC. Collection order does not change a replay hash or caller-owned facts.
 func normalizedForecast(in ForecastInput) ForecastInput {
@@ -168,7 +175,7 @@ func normalizedForecast(in ForecastInput) ForecastInput {
 	for i := range in.Versions {
 		in.Versions[i].ConfirmedAt = in.Versions[i].ConfirmedAt.UTC()
 	}
-	sort.Slice(in.Versions, func(i, j int) bool { return in.Versions[i].PolicyID.String() < in.Versions[j].PolicyID.String() })
+	sort.Slice(in.Versions, func(i, j int) bool { return forecastIDLess(in.Versions[i].PolicyID, in.Versions[j].PolicyID) })
 	in.RetainedObligations = append([]ForecastObligation(nil), in.RetainedObligations...)
 	sort.Slice(in.RetainedObligations, func(i, j int) bool { return in.RetainedObligations[i].ID < in.RetainedObligations[j].ID })
 	in.ExternalLiabilities = append([]ForecastExternalLiability(nil), in.ExternalLiabilities...)
@@ -179,12 +186,12 @@ func normalizedForecast(in ForecastInput) ForecastInput {
 	for i := range in.FutureIncome {
 		in.FutureIncome[i].ExpectedAt = in.FutureIncome[i].ExpectedAt.UTC()
 	}
-	sort.Slice(in.FutureIncome, func(i, j int) bool { return in.FutureIncome[i].ID.String() < in.FutureIncome[j].ID.String() })
+	sort.Slice(in.FutureIncome, func(i, j int) bool { return forecastIDLess(in.FutureIncome[i].ID, in.FutureIncome[j].ID) })
 	in.PrincipalReturns = append([]ForecastPrincipalReturn(nil), in.PrincipalReturns...)
-	sort.Slice(in.PrincipalReturns, func(i, j int) bool { return in.PrincipalReturns[i].ID.String() < in.PrincipalReturns[j].ID.String() })
+	sort.Slice(in.PrincipalReturns, func(i, j int) bool { return forecastIDLess(in.PrincipalReturns[i].ID, in.PrincipalReturns[j].ID) })
 	f := in.Facts
 	f.Accounts = append([]policy.TemplateAccountFact(nil), f.Accounts...)
-	sort.Slice(f.Accounts, func(i, j int) bool { return f.Accounts[i].ID.String() < f.Accounts[j].ID.String() })
+	sort.Slice(f.Accounts, func(i, j int) bool { return forecastIDLess(f.Accounts[i].ID, f.Accounts[j].ID) })
 	f.Goals = append([]policy.TemplateGoalFact(nil), f.Goals...)
 	for i := range f.Goals {
 		if f.Goals[i].GoalVersion != nil {
@@ -193,28 +200,28 @@ func normalizedForecast(in ForecastInput) ForecastInput {
 			f.Goals[i].GoalVersion = &v
 		}
 	}
-	sort.Slice(f.Goals, func(i, j int) bool { return f.Goals[i].ID.String() < f.Goals[j].ID.String() })
+	sort.Slice(f.Goals, func(i, j int) bool { return forecastIDLess(f.Goals[i].ID, f.Goals[j].ID) })
 	f.Income = append([]policy.TemplateIncomeFact(nil), f.Income...)
 	for i := range f.Income {
 		f.Income[i].OccurredAt = f.Income[i].OccurredAt.UTC()
 	}
-	sort.Slice(f.Income, func(i, j int) bool { return f.Income[i].ID.String() < f.Income[j].ID.String() })
+	sort.Slice(f.Income, func(i, j int) bool { return forecastIDLess(f.Income[i].ID, f.Income[j].ID) })
 	f.Bills = append([]policy.TemplateBillFact(nil), f.Bills...)
-	sort.Slice(f.Bills, func(i, j int) bool { return f.Bills[i].ID.String() < f.Bills[j].ID.String() })
+	sort.Slice(f.Bills, func(i, j int) bool { return forecastIDLess(f.Bills[i].ID, f.Bills[j].ID) })
 	f.Settlements = append([]policy.TemplateSettlementFact(nil), f.Settlements...)
 	sort.Slice(f.Settlements, func(i, j int) bool {
 		return f.Settlements[i].PolicyID.String()+f.Settlements[i].Period < f.Settlements[j].PolicyID.String()+f.Settlements[j].Period
 	})
 	f.HistoryAccounts = append([]funds.ID(nil), f.HistoryAccounts...)
-	sort.Slice(f.HistoryAccounts, func(i, j int) bool { return f.HistoryAccounts[i].String() < f.HistoryAccounts[j].String() })
+	sort.Slice(f.HistoryAccounts, func(i, j int) bool { return forecastIDLess(f.HistoryAccounts[i], f.HistoryAccounts[j]) })
 	f.History = append([]policy.TemplateHistoryTransaction(nil), f.History...)
-	sort.Slice(f.History, func(i, j int) bool { return f.History[i].ID.String() < f.History[j].ID.String() })
+	sort.Slice(f.History, func(i, j int) bool { return forecastIDLess(f.History[i].ID, f.History[j].ID) })
 	f.Coverage = append([]policy.TemplateHistoryCoverage(nil), f.Coverage...)
 	for i := range f.Coverage {
 		f.Coverage[i].Dates = append([]string(nil), f.Coverage[i].Dates...)
 		sort.Strings(f.Coverage[i].Dates)
 	}
-	sort.Slice(f.Coverage, func(i, j int) bool { return f.Coverage[i].AccountID.String() < f.Coverage[j].AccountID.String() })
+	sort.Slice(f.Coverage, func(i, j int) bool { return forecastIDLess(f.Coverage[i].AccountID, f.Coverage[j].AccountID) })
 	// Non-protection consumer facts are excluded from this algorithm's input.
 	// Their authoritative inventory version still participates via InventoryHash.
 	f.Products = nil
@@ -234,12 +241,19 @@ type forecastPolicy struct {
 	living      funds.Money
 	goalMinimum funds.Money
 	state       string
+	dates       policy.TemplateDateRange
 }
 
 // Forecast365 protects current confirmed cash against every generated unpaid
 // obligation. Hypothetical payment removes both cash and the matching debt.
 // Future income changes ForecastCash only, never Cash/Margin/CurrentSafe.
 func Forecast365(in ForecastInput) (ForecastResult, error) {
+	forecast365Attempts.Add(1)
+	var dateScope policy.TemplateDateParseScope
+	return forecast365DateScoped(in, &dateScope)
+}
+
+func forecast365DateScoped(in ForecastInput, dateScope *policy.TemplateDateParseScope) (ForecastResult, error) {
 	zone, err := policy.TemplateLocation(in.Timezone)
 	if err != nil || in.AsOf.IsZero() || in.AsOf.Year() < 1 || in.AsOf.Year() > 9998 || !in.Complete || !validHash(in.InventoryHash) || in.Scope.EnvironmentID == (funds.ID{}) || in.Scope.UserID == (funds.ID{}) || in.Facts.Scope != in.Scope || !in.Facts.Complete || !validHash(in.Facts.SourceHash) {
 		return ForecastResult{}, ErrForecastInput
@@ -395,10 +409,12 @@ func Forecast365(in ForecastInput) (ForecastResult, error) {
 			policies = append(policies, fp)
 			continue
 		}
-		start, _, _ := policy.TemplateValidity(v.Compiled, v.ConfirmedAt, in.Timezone)
-		if start.Before(v.ConfirmedAt) {
-			start = v.ConfirmedAt
+		dates, e := policy.PrepareTemplateDateRange(v, in.Timezone)
+		if e != nil {
+			return ForecastResult{}, ErrForecastInput
 		}
+		fp.dates = dates
+		start := dates.Start()
 		firstMonth := time.Date(start.In(zone).Year(), start.In(zone).Month(), 1, 0, 0, 0, 0, zone)
 		if (local.Year()-firstMonth.Year())*12+int(local.Month())-int(firstMonth.Month()) > 120 {
 			return ForecastResult{}, ErrForecastCapacity
@@ -504,7 +520,7 @@ func Forecast365(in ForecastInput) (ForecastResult, error) {
 				if due > endDate {
 					break
 				}
-				active, e := policy.TemplateActiveOnDate(v, due, in.Timezone)
+				active, e := dates.ActiveOnDate(due)
 				if e != nil {
 					return ForecastResult{}, e
 				}
@@ -605,6 +621,10 @@ func Forecast365(in ForecastInput) (ForecastResult, error) {
 	cash := in.Facts.CurrentCash.Cents()
 	future := int64(0)
 	minMargin := int64(funds.MaxMoneyCents)
+	// Only immutable policy date predicates are shared across the three phases.
+	// Cash, outstanding debt, principal and protected totals remain phase-local.
+	policyDateKnown := make([]bool, len(policies))
+	policyDateActive := make([]bool, len(policies))
 	protected := func(date string) (int64, error) {
 		total, e := forecastAdd(goalCash, in.HeldCash.Cents())
 		if e != nil {
@@ -622,13 +642,17 @@ func Forecast365(in ForecastInput) (ForecastResult, error) {
 				}
 			}
 		}
-		for _, fp := range policies {
+		for index, fp := range policies {
 			if fp.state != "ACTIVE" && fp.state != "CONFIRMED" {
 				continue
 			}
-			active, e := policy.TemplateActiveOnDate(fp.version, date, in.Timezone)
-			if e != nil {
-				return 0, e
+			active := policyDateActive[index]
+			if !policyDateKnown[index] {
+				active, e = fp.dates.ActiveOnDateScoped(date, dateScope)
+				if e != nil {
+					return 0, e
+				}
+				policyDateActive[index], policyDateKnown[index] = active, true
 			}
 			if !active {
 				continue
@@ -652,6 +676,7 @@ func Forecast365(in ForecastInput) (ForecastResult, error) {
 	for offset := 0; offset <= in.HorizonDays; offset++ {
 		day := day0.AddDate(0, 0, offset)
 		date := day.Format("2006-01-02")
+		clear(policyDateKnown)
 		for phaseIndex, phase := range []string{"BEFORE_PAYMENT", "AFTER_PAYMENT", "AFTER_PRINCIPAL"} {
 			if phaseIndex == 1 {
 				for _, o := range result.Obligations {
@@ -687,6 +712,9 @@ func Forecast365(in ForecastInput) (ForecastResult, error) {
 			at = at.Add(time.Duration(phaseIndex) * time.Nanosecond)
 			floorMoney, _ := forecastMoney(floor)
 			futureMoney, _ := forecastMoney(future)
+			if offset == 0 && phaseIndex == 0 {
+				result.Points = make([]ForecastPoint, 0, (in.HorizonDays+1)*3)
+			}
 			result.Points = append(result.Points, ForecastPoint{date + ":" + phase, date, phase, at, strconv.FormatInt(cash, 10), floorMoney, strconv.FormatInt(margin, 10), futureMoney, strconv.FormatInt(cash+future, 10)})
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"zhiyu.local/zhiyu-go/internal/execution/fundswitness"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 	planning "zhiyu.local/zhiyu-go/internal/planning/domain"
 	policy "zhiyu.local/zhiyu-go/internal/policy/domain"
@@ -31,26 +32,31 @@ type TemplateGoalTargetMutation struct {
 	After  funds.Money `json:"after_cents"`
 }
 type TemplatePolicyPreview struct {
-	ID                 funds.ID                    `json:"id"`
-	PolicyID           funds.ID                    `json:"policy_id"`
-	VersionID          funds.ID                    `json:"version_id"`
-	BaseVersion        uint64                      `json:"base_version"`
-	Mode               string                      `json:"mode"`
-	Scope              policy.TemplateOwnerScope   `json:"scope"`
-	GoalID             *funds.ID                   `json:"goal_id,omitempty"`
-	TargetMutation     *TemplateGoalTargetMutation `json:"target_mutation,omitempty"`
-	Timezone           string                      `json:"timezone"`
-	Compiled           policy.CompiledTemplate     `json:"compiled"`
-	FactsHash          string                      `json:"facts_hash"`
-	SourceHash         string                      `json:"source_hash"`
-	Facts              policy.TemplateFacts        `json:"facts"`
-	Preview            policy.TemplatePreview      `json:"preview"`
-	Forecast           planning.ForecastResult     `json:"forecast"`
-	ReviewedBundleHash string                      `json:"reviewed_bundle_hash"`
-	CreatedAt          time.Time                   `json:"created_at"`
-	ExpiresAt          time.Time                   `json:"expires_at"`
-	Authority          string                      `json:"authority"`
-	BankAuthority      bool                        `json:"bank_authority"`
+	ID                    funds.ID                    `json:"id"`
+	PolicyID              funds.ID                    `json:"policy_id"`
+	VersionID             funds.ID                    `json:"version_id"`
+	BaseVersion           uint64                      `json:"base_version"`
+	Mode                  string                      `json:"mode"`
+	Scope                 policy.TemplateOwnerScope   `json:"scope"`
+	GoalID                *funds.ID                   `json:"goal_id,omitempty"`
+	TargetMutation        *TemplateGoalTargetMutation `json:"target_mutation,omitempty"`
+	Timezone              string                      `json:"timezone"`
+	Compiled              policy.CompiledTemplate     `json:"compiled"`
+	FactsHash             string                      `json:"facts_hash"`
+	SourceHash            string                      `json:"source_hash"`
+	SourceWitnessID       *funds.ID                   `json:"source_witness_id,omitempty"`
+	SourceWitnessHash     string                      `json:"source_witness_hash,omitempty"`
+	SnapshotFundsVersion  uint64                      `json:"snapshot_funds_version,omitempty"`
+	SnapshotSourceVersion uint64                      `json:"snapshot_source_version,omitempty"`
+	Facts                 policy.TemplateFacts        `json:"facts"`
+	Preview               policy.TemplatePreview      `json:"preview"`
+	ForecastInput         *planning.ForecastInput     `json:"forecast_input,omitempty"`
+	Forecast              planning.ForecastResult     `json:"forecast"`
+	ReviewedBundleHash    string                      `json:"reviewed_bundle_hash"`
+	CreatedAt             time.Time                   `json:"created_at"`
+	ExpiresAt             time.Time                   `json:"expires_at"`
+	Authority             string                      `json:"authority"`
+	BankAuthority         bool                        `json:"bank_authority"`
 }
 type TemplatePolicyView struct {
 	Version            policy.TemplateVersion `json:"version"`
@@ -69,6 +75,7 @@ type templateConfirmationOriginal struct {
 	PrincipalKind, ReviewedBundleHash, ConfigurationHash string
 	ConfirmedAt                                          time.Time
 	TargetMutation                                       *TemplateGoalTargetMutation `json:"target_mutation,omitempty"`
+	DatedReferences                                      *datedConfirmationWitnessV1 `json:"dated_references,omitempty"`
 }
 type templateStatusOriginal struct {
 	Protocol                              string
@@ -77,6 +84,7 @@ type templateStatusOriginal struct {
 	Action, OldState, NewState, ActorKind string
 	SessionID                             *funds.ID
 	At                                    time.Time
+	Admission                             *fundswitness.Boundary `json:"admission,omitempty"`
 }
 
 type templateQuery interface {
@@ -275,6 +283,18 @@ func (s *Service) PreviewTemplatePolicy(ctx context.Context, p Principal, in Tem
 	}
 	// These flags belong only to a clearly marked counterfactual invocation.
 	// No such version/confirmation/authority is persisted by a preview.
+	var protectedBefore *planning.ForecastInput
+	protectedIDs, err := datedRequiredReferences(compiled)
+	if err != nil {
+		return view, reject("INVALID_TEMPLATE_CONFIGURATION", err)
+	}
+	if len(protectedIDs) != 0 {
+		input, e := planning.CloneForecastInput(snapshot.forecastInput(365))
+		if e != nil {
+			return view, reject("TEMPLATE_PROTECTED_REFERENCE_INCOMPLETE", e)
+		}
+		protectedBefore = &input
+	}
 	proposed := policy.TemplateVersion{PolicyID: view.PolicyID, VersionID: view.VersionID, Version: view.BaseVersion + 1, Scope: view.Scope, Compiled: compiled, State: "ACTIVE", ConfirmedAt: now, Current: true, ConfirmationVerified: true, ConfirmedConfigurationHash: compiled.Hash}
 	versions := []policy.TemplateVersion{}
 	for _, v := range snapshot.Versions {
@@ -331,6 +351,10 @@ func (s *Service) PreviewTemplatePolicy(ctx context.Context, p Principal, in Tem
 			return view, reject("NOT_FOUND", nil)
 		}
 	}
+	if snapshot.SourceWitnessEnabled {
+		input := snapshot.forecastInput(365)
+		view.ForecastInput = &input
+	}
 	forecast, err := forecastTemplateSnapshot(snapshot, 365)
 	if err != nil {
 		return view, err
@@ -339,7 +363,15 @@ func (s *Service) PreviewTemplatePolicy(ctx context.Context, p Principal, in Tem
 	snapshot.Facts.CurrentSafeVerified = true
 	view.Facts = snapshot.Facts
 	view.Forecast = forecast.Result
-	view.Preview, err = policy.PreviewTemplate(proposed, snapshot.Facts, now, zone)
+	if protectedBefore != nil {
+		after := snapshot.forecastInput(365)
+		after.Facts.CurrentSafe, after.Facts.CurrentSafeVerified = funds.Money{}, false
+		view.Facts.ProtectedReferences, err = planning.CompareProtectedPolicyReferencesV1(*protectedBefore, after, proposed.PolicyID, protectedIDs)
+		if err != nil {
+			return view, reject("TEMPLATE_PROTECTED_REFERENCE_INCOMPLETE", err)
+		}
+	}
+	view.Preview, err = policy.PreviewTemplate(proposed, view.Facts, now, zone)
 	if err != nil {
 		return view, reject("TEMPLATE_PREVIEW_INCOMPLETE", err)
 	}
@@ -348,6 +380,23 @@ func (s *Service) PreviewTemplatePolicy(ctx context.Context, p Principal, in Tem
 		return view, err
 	}
 	view.FactsHash = Hash(factsRaw)
+	// Persist the exact read witness in the same write transaction as its
+	// review bundle. The retained snapshot precedes the proposed policy.
+	if snapshot.SourceWitnessEnabled {
+		if err = tx.Commit(ctx); err != nil {
+			return view, err
+		}
+		tx, err = s.begin(ctx)
+		if err != nil {
+			return view, err
+		}
+		defer rollback(ctx, tx)
+		view.SourceWitnessID, view.SourceWitnessHash, err = s.saveTemplateSourceWitness(ctx, tx, p, snapshot)
+		if err != nil {
+			return view, err
+		}
+		view.SnapshotFundsVersion, view.SnapshotSourceVersion = snapshot.FundsVersion, snapshot.SourceVersion
+	}
 	view.ReviewedBundleHash, err = templatePreviewHash(view)
 	if err != nil {
 		return view, err
@@ -363,13 +412,24 @@ func (s *Service) PreviewTemplatePolicy(ctx context.Context, p Principal, in Tem
 	if len(bundle) > 8*1024*1024 || len(factsRaw) > 4*1024*1024 {
 		return view, reject("TEMPLATE_CAPACITY_EXCEEDED", nil)
 	}
-	if err = tx.Commit(ctx); err != nil {
+	if err = s.human(ctx, tx, p); err != nil {
 		return view, err
 	}
-	if err = s.human(ctx, s.Pool, p); err != nil {
+	if !snapshot.SourceWitnessEnabled {
+		if err = tx.Commit(ctx); err != nil {
+			return view, err
+		}
+		tx, err = s.begin(ctx)
+		if err != nil {
+			return view, err
+		}
+		defer rollback(ctx, tx)
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO template_policy_previews(environment_id,user_id,id,policy_id,version_id,base_version,template_name,goal_id,timezone,session_id,configuration,configuration_hash,facts_original,facts_hash,source_hash,preview_original,preview_hash,review_bundle,reviewed_bundle_hash,created_at,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`, p.EnvironmentID.String(), p.UserID.String(), view.ID.String(), view.PolicyID.String(), view.VersionID.String(), view.BaseVersion, string(in.Name), templateIDArgument(in.GoalID), zone, p.SessionID.String(), compiled.Configuration, compiled.Hash, factsRaw, view.FactsHash, view.SourceHash, previewRaw, Hash(previewRaw), bundle, view.ReviewedBundleHash, now, view.ExpiresAt)
+	if err != nil {
 		return view, err
 	}
-	_, err = s.writerExec(ctx, `INSERT INTO template_policy_previews(environment_id,user_id,id,policy_id,version_id,base_version,template_name,goal_id,timezone,session_id,configuration,configuration_hash,facts_original,facts_hash,source_hash,preview_original,preview_hash,review_bundle,reviewed_bundle_hash,created_at,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`, p.EnvironmentID.String(), p.UserID.String(), view.ID.String(), view.PolicyID.String(), view.VersionID.String(), view.BaseVersion, string(in.Name), templateIDArgument(in.GoalID), zone, p.SessionID.String(), compiled.Configuration, compiled.Hash, factsRaw, view.FactsHash, view.SourceHash, previewRaw, Hash(previewRaw), bundle, view.ReviewedBundleHash, now, view.ExpiresAt)
+	err = tx.Commit(ctx)
 	return view, err
 }
 
@@ -487,6 +547,10 @@ func (s *Service) ConfirmTemplatePolicy(ctx context.Context, p Principal, key st
 	if base != preview.BaseVersion {
 		return out, reject("SOURCE_CHANGED", nil)
 	}
+	datedReferences, err := s.validateDatedConfirmation(ctx, tx, p, preview, snapshot, now)
+	if err != nil {
+		return out, err
+	}
 	if err = saveTemplateInventory(ctx, tx, p, snapshot); err != nil {
 		return out, err
 	}
@@ -506,9 +570,13 @@ func (s *Service) ConfirmTemplatePolicy(ctx context.Context, p Principal, key st
 		return out, reject("INVALID_TEMPLATE_CONFIGURATION", err)
 	}
 	confirmation := templateConfirmationOriginal{Protocol: "template-user-confirmation-v1", ID: confirmationID, PolicyID: version.PolicyID, VersionID: version.VersionID, PreviewID: preview.ID, SessionID: p.SessionID, Scope: version.Scope, PrincipalKind: "USER", ReviewedBundleHash: preview.ReviewedBundleHash, ConfigurationHash: version.Compiled.Hash, ConfirmedAt: now, TargetMutation: preview.TargetMutation}
+	confirmation.DatedReferences = datedReferences
 	cRaw, err := encode(confirmation)
 	if err != nil {
 		return out, err
+	}
+	if datedReferences != nil && len(cRaw) > 65536 {
+		return out, reject("TEMPLATE_PROTECTED_REFERENCE_CAPACITY", nil)
 	}
 	if base == 0 {
 		_, err = tx.Exec(ctx, `INSERT INTO template_policies(environment_id,user_id,id,template_name,goal_id,current_version,created_at) VALUES($1,$2,$3,$4,$5,1,$6)`, p.EnvironmentID.String(), p.UserID.String(), version.PolicyID.String(), string(version.Compiled.Name), templateIDArgument(preview.GoalID), now)
@@ -545,8 +613,10 @@ func (s *Service) ConfirmTemplatePolicy(ctx context.Context, p Principal, key st
 		if tag.RowsAffected() != 1 {
 			return out, reject("SOURCE_CHANGED", nil)
 		}
-		if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
-			return out, err
+		if !snapshot.SourceWitnessEnabled {
+			if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
+				return out, err
+			}
 		}
 	}
 	newSnapshot, err := s.loadTemplateSnapshot(ctx, tx, p, now, preview.Timezone)
@@ -555,6 +625,13 @@ func (s *Service) ConfirmTemplatePolicy(ctx context.Context, p Principal, key st
 	}
 	if err = s.adoptTemplateObligations(ctx, tx, p, newSnapshot); err != nil {
 		return out, err
+	}
+	if snapshot.SourceWitnessEnabled {
+		// Seal authority and any target mutation together, after their full
+		// original set. Source-only lifecycle changes also receive a precise FV.
+		if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
+			return out, err
+		}
 	}
 	if _, err = s.refreshTemplateProtection(ctx, tx, p, preview.Timezone); err != nil {
 		return out, err
@@ -585,6 +662,11 @@ func saveTemplateStatus(ctx context.Context, tx pgx.Tx, p Principal, id, version
 		session = &sid
 	}
 	original := templateStatusOriginal{Protocol: "template-lifecycle-v1", ID: id, VersionID: version, Sequence: sequence, Action: action, OldState: old, NewState: state, ActorKind: p.Kind, SessionID: session, At: at}
+	admission, err := fundsAuthorityAdmission(ctx, tx, p)
+	if err != nil {
+		return err
+	}
+	original.Admission = admission
 	raw, err := encode(original)
 	if err != nil {
 		return err
@@ -657,6 +739,11 @@ func (s *Service) SetTemplatePolicyState(ctx context.Context, p Principal, id, e
 	_, err = tx.Exec(ctx, `UPDATE template_policy_versions SET state=$4,status_sequence=status_sequence+1,status_event_id=$5 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), out.Version.VersionID.String(), state, event.String())
 	if err != nil {
 		return out, err
+	}
+	if snapshot.SourceWitnessEnabled {
+		if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
+			return out, err
+		}
 	}
 	if _, err = s.refreshTemplateProtection(ctx, tx, p, out.Timezone); err != nil {
 		return out, err

@@ -21,19 +21,36 @@ import (
 
 func run(ctx context.Context, args []string, out io.Writer, logger *slog.Logger, getenv func(string) string) error {
 	if len(args) > 1 {
+		opts, err := options(args)
+		if err != nil {
+			return err
+		}
+		if opts.Config == "" && opts.Command == "api" {
+			return runEnvironment(ctx, "api", opts.WebRoot, out, logger, getenv)
+		}
 		return runConfigured(ctx, args, out, logger)
 	}
 	if len(args) != 1 || (args[0] != "doctor" && args[0] != "api") {
 		return fmt.Errorf("usage: zhiyu <doctor|api|worker|standing|migrate|seed|demo-income> [-config role-runtime.json]")
 	}
+	return runEnvironment(ctx, args[0], "", out, logger, getenv)
+}
+
+func runEnvironment(ctx context.Context, command, webRoot string, out io.Writer, logger *slog.Logger, getenv func(string) string) error {
 	c, err := platform.Load(getenv)
 	if err != nil {
 		return err
 	}
-	if args[0] == "doctor" {
+	if command == "doctor" {
 		return json.NewEncoder(out).Encode(map[string]any{"environment": c.Environment, "listen_addr": c.ListenAddr, "simulation": true, "go": runtime.Version(), "database_configured": c.DatabaseURL != "", "database_verified": false, "financial_operations_enabled": false, "mode": "CONFIG_ONLY_NO_IO"})
 	}
 	server := httpapi.Server(c, logger)
+	handler, closeWeb, err := optionalStaticWeb(server.Handler, webRoot)
+	if err != nil {
+		return err
+	}
+	server.Handler = handler
+	defer closeWeb()
 	listener, err := net.Listen("tcp", c.ListenAddr)
 	if err != nil {
 		return err

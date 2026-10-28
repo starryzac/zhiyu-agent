@@ -83,8 +83,18 @@ func (s *Store) InventoryV2(ctx context.Context, namespace, user string, after, 
 }
 
 func (s *Store) CurrentStateV2(ctx context.Context, namespace, user string) (bankv2.CurrentState, error) {
+	return s.currentStateV2(ctx, namespace, user, nil)
+}
+
+// CurrentStateV2At accepts only an explicit server simulation timestamp; the
+// same RR inventory and original validation is shared with default reads.
+func (s *Store) CurrentStateV2At(ctx context.Context, namespace, user string, at time.Time) (bankv2.CurrentState, error) {
+	return s.currentStateV2(ctx, namespace, user, &at)
+}
+
+func (s *Store) currentStateV2(ctx context.Context, namespace, user string, at *time.Time) (bankv2.CurrentState, error) {
 	r := bankv2.CurrentState{Protocol: bankv2.Protocol, Namespace: namespace, UserID: user, Products: []bankv2.ProductSnapshot{}, Positions: []bankv2.Position{}, Accounts: []bankv2.Account{}, Goals: []bankv2.Goal{}}
-	if !validIdentity(namespace, user) {
+	if !validIdentity(namespace, user) || at != nil && at.IsZero() {
 		return r, bankv2.ErrInvalid
 	}
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
@@ -97,6 +107,9 @@ func (s *Store) CurrentStateV2(ctx context.Context, namespace, user string) (ban
 	}
 	if err = tx.QueryRow(ctx, "SELECT transaction_timestamp(),coalesce((SELECT max(sequence) FROM bank.v2_operations WHERE namespace=$1 AND user_id=$2),0),coalesce((SELECT max(catalog_sequence) FROM bank.v2_product_availability WHERE namespace=$1),0)", namespace, user).Scan(&r.CapturedAt, &r.OperationWatermark, &r.CatalogWatermark); err != nil {
 		return r, err
+	}
+	if at != nil {
+		r.CapturedAt = at.UTC()
 	}
 	rows, err := tx.Query(ctx, "SELECT product_id,max(version) FROM bank.v2_product_terms WHERE namespace=$1 GROUP BY product_id ORDER BY product_id LIMIT 101", namespace)
 	if err != nil {

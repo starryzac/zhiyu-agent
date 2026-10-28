@@ -230,19 +230,19 @@ func verifyAndAddNativeIncome(ctx context.Context, tx pgx.Tx, p Principal, ledge
 	}
 	imported := []bankcredit.Entry{}
 	delta := map[string]funds.Money{}
-	for _, entry := range state.Credits {
+	evidence := nativeIncomeEvidenceReader{ctx: ctx, tx: tx, p: p, credits: state.Credits, known: localOrigins}
+	for i, entry := range state.Credits {
 		e := entry.Record.Event
 		if fact, exists := localOrigins[e.OriginID]; exists {
 			if fact.EvidenceID.String() != e.EvidenceID || fact.EvidenceHash.String() != entry.RecordHash {
 				return fail()
 			}
-			var canonical []byte
-			var digest, kind string
-			if err := tx.QueryRow(ctx, `SELECT canonical,digest,kind FROM evidence_blobs WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), e.EvidenceID).Scan(&canonical, &digest, &kind); err != nil {
+			stored, err := evidence.row(i, entry)
+			if err != nil {
 				return ledger, nil, reject("INCOME_ORIGINAL_CONFLICT", err)
 			}
 			want, _ := entry.Record.CanonicalBytes()
-			if kind != "BANK_EXTERNAL_CREDIT_V1" || digest != entry.RecordHash || Hash(canonical) != digest || !bytes.Equal(canonical, want) {
+			if stored.bytes != int64(len(want)) || stored.kind != "BANK_EXTERNAL_CREDIT_V1" || stored.digest != entry.RecordHash || Hash(stored.canonical) != stored.digest || !bytes.Equal(stored.canonical, want) {
 				return fail()
 			}
 			continue

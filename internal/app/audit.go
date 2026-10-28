@@ -815,11 +815,15 @@ func (s *Service) AuditStep(ctx context.Context, owner string, lease time.Durati
 }
 
 func (s *Service) RunAuditWorker(ctx context.Context, owner string) error {
+	var databaseFailures uint
 	for {
 		if ctx.Err() != nil {
 			return nil
 		}
 		worked, err := s.AuditStep(ctx, owner, 30*time.Second)
+		if retryBackgroundDatabase(ctx, err, &databaseFailures) {
+			continue
+		}
 		if err != nil && !errors.Is(err, ErrAuditClaimLost) {
 			return err
 		}

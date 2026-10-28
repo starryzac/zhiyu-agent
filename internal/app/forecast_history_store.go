@@ -114,9 +114,9 @@ func (s *Service) ImportForecastHistory(ctx context.Context, p Principal, key, s
 	if err != nil {
 		return zero, reject("HISTORY_SOURCE_UNAVAILABLE", nil)
 	}
-	var envelope policy.HistoryStatementEnvelope
-	if len(wire) > 2*policy.MaxHistoryStatementBytes+4096 || auditJSON(wire, &envelope) != nil {
-		return zero, reject("HISTORY_SOURCE_INVALID", nil)
+	envelope, err := parseForecastHistoryEnvelope(wire)
+	if err != nil {
+		return zero, err
 	}
 	statement, err := historyStatementFor(source.Authority, envelope, s.now())
 	if err != nil {

@@ -124,6 +124,7 @@ func HandlerV2(store *Store, options HandlerOptions) http.Handler {
 	old := Handler(store, options)
 	mux := http.NewServeMux()
 	registerLiabilityReadV2(mux, store, clock)
+	registerObservationHead(mux, store, clock)
 	registerRecoverySubjects(mux, store)
 	mux.HandleFunc("GET /v2/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if store.CheckV2(r.Context()) != nil {
@@ -182,7 +183,13 @@ func HandlerV2(store *Store, options HandlerOptions) http.Handler {
 	})
 	mux.HandleFunc("GET /v2/state", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		result, err := store.CurrentStateV2(r.Context(), q.Get("namespace"), q.Get("user_id"))
+		var result bankv2.CurrentState
+		var err error
+		if options.Clock == nil {
+			result, err = store.CurrentStateV2(r.Context(), q.Get("namespace"), q.Get("user_id"))
+		} else {
+			result, err = store.CurrentStateV2At(r.Context(), q.Get("namespace"), q.Get("user_id"), clock())
+		}
 		if err != nil {
 			v2HTTPError(w, err)
 			return

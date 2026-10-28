@@ -1,0 +1,23 @@
+\set ON_ERROR_STOP on
+BEGIN;
+SET LOCAL lock_timeout='5s'; SET LOCAL statement_timeout='15s';
+SELECT pg_advisory_xact_lock(hashtextextended('__NS__/user/__USER__',0));
+DO $zero$
+DECLARE t text; n bigint;
+BEGIN
+ IF current_user<>'zygo_bank' OR current_database()<>'__ENV___bank' THEN RAISE EXCEPTION 'BANK_DATABASE_SCOPE'; END IF;
+ FOREACH t IN ARRAY ARRAY['operations','v2_operations','postings','v2_postings','origins','income_locations','external_credits','external_credit_postings','v2_position_openings','v2_position_state','v2_goal_lots','v2_principal_returns','v2_return_locations','v2_resource_holds'] LOOP
+  EXECUTE format('SELECT count(*) FROM bank.%I',t) INTO n;
+  IF n<>0 THEN RAISE EXCEPTION 'Bank contains business; refuse zero initialization'; END IF;
+ END LOOP;
+ IF EXISTS(SELECT 1 FROM bank.accounts WHERE namespace<>'__NS__' OR user_id<>'__USER__' OR account_id<>'__ACCOUNT__' OR balance_cents<>0 OR reserved_cents<>0)
+ OR EXISTS(SELECT 1 FROM bank.opening_anchors WHERE namespace<>'__NS__' OR user_id<>'__USER__' OR account_id<>'__ACCOUNT__' OR opening_cents<>0)
+ OR EXISTS(SELECT 1 FROM bank.accounts a FULL JOIN bank.opening_anchors o USING(namespace,user_id,account_id) WHERE a.account_id IS NULL OR o.account_id IS NULL)
+ OR EXISTS(SELECT 1 FROM bank.goals WHERE namespace<>'__NS__' OR user_id<>'__USER__' OR goal_id<>'__GOAL__' OR account_id<>'__ACCOUNT__' OR balance_cents<>0)
+ THEN RAISE EXCEPTION 'Existing zero identity differs'; END IF;
+ INSERT INTO bank.opening_anchors(namespace,user_id,account_id,opening_cents) VALUES('__NS__','__USER__','__ACCOUNT__',0) ON CONFLICT DO NOTHING;
+ INSERT INTO bank.accounts(namespace,user_id,account_id,balance_cents,reserved_cents) VALUES('__NS__','__USER__','__ACCOUNT__',0,0) ON CONFLICT DO NOTHING;
+ INSERT INTO bank.goals(namespace,user_id,goal_id,account_id,balance_cents) VALUES('__NS__','__USER__','__GOAL__','__ACCOUNT__',0) ON CONFLICT DO NOTHING;
+END $zero$;
+SELECT json_build_object('status','ZERO_BANK_READY','accounts',(SELECT count(*) FROM bank.accounts),'goals',(SELECT count(*) FROM bank.goals),'balance_cents',(SELECT sum(balance_cents) FROM bank.accounts))::text;
+COMMIT;

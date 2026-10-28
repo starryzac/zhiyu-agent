@@ -30,6 +30,9 @@ type nativeDebtPaymentV3 struct {
 	Amount        funds.Money `json:"amount_cents"`
 	LiabilityHash string      `json:"liability_hash"`
 	RecordedAt    time.Time   `json:"recorded_at"`
+	// The payment is later than this immutable T1/T2 source watermark. The
+	// injected business clock may stay equal across both transactions.
+	afterSourceVersion uint64
 }
 
 type nativeVerifiedBillV3 struct {
@@ -230,6 +233,16 @@ func (g *nativeGraphV3) nativeBillPaymentRowsV3(i *nativeBillIndexV3) error {
 			return businessInvalid("debt paid requires one verified SETTLED receipt, original amount and original liability")
 		}
 		used[p.OperationID.String()] = true
+		var dependencies planning.DependencyVector
+		op := g.row("native_operations", p.OperationID.String())
+		if op == nil {
+			return nativeBillIncompleteV3("payment operation watermark unavailable")
+		}
+		op.object("dependencies", &dependencies)
+		if dependencies.SourceEvidenceVersion < 1 {
+			return businessInvalid("payment exact source watermark")
+		}
+		p.afterSourceVersion = dependencies.SourceEvidenceVersion
 		var err error
 		i.paid[p.ObligationID], err = i.paid[p.ObligationID].Add(p.Amount)
 		if err != nil || i.paid[p.ObligationID].Cents() > source.Original.FinalTotal.Cents() {
@@ -348,9 +361,12 @@ func (g *nativeGraphV3) nativeBillResultsV3(i *nativeBillIndexV3) error {
 	return nil
 }
 
-func nativePaidByV3(payments []nativeDebtPaymentV3, id string, at time.Time) funds.Money {
+func nativePaidByV3(payments []nativeDebtPaymentV3, id string, at time.Time, sourceVersions ...uint64) funds.Money {
 	var total funds.Money
 	for _, p := range payments {
+		if len(sourceVersions) > 0 && sourceVersions[0] != 0 && p.afterSourceVersion >= sourceVersions[0] {
+			continue
+		}
 		if p.ObligationID == id && !p.RecordedAt.After(at) {
 			total, _ = total.Add(p.Amount) // bounded and checked in the source index
 		}
@@ -376,9 +392,11 @@ func (g *nativeGraphV3) nativeObligationsV3(i nativeBillIndexV3) error {
 			}
 			config, err := version.Compiled.Decode()
 			rule, recurring := config.(*policy.RecurringObligationConfig)
-			if err != nil || !recurring || rule.AmountRule.Kind != "bill_balance" || rule.AmountRule.AccountID == nil || *rule.AmountRule.AccountID != bill.original.StatementAccountID || debt.Amount != bill.original.FinalTotal || debt.DueDate != bill.original.DueDate || row.instant("adopted_at").Before(bill.first) {
+			if err != nil || !recurring || rule.AmountRule.Kind != "bill_balance" || rule.AmountRule.AccountID == nil || *rule.AmountRule.AccountID != bill.original.StatementAccountID || debt.Amount != bill.original.FinalTotal || debt.DueDate != bill.original.DueDate || row.text("kind") != "BILL" || row.text("period_key") != debt.DueDate || row.instant("adopted_at").Before(bill.first) {
 				return businessInvalid("bill debt adoption binds exact original statement and confirmed account rule")
 			}
+		} else if err := nativeConfiguredDebtOriginalV3(row, debt, version); err != nil {
+			return err
 		}
 		if final, found := i.finals[debt.ID]; found && final.Cents() > debt.Amount.Cents() {
 			return businessInvalid("external final total cannot enlarge original adopted upper bound")
@@ -395,6 +413,44 @@ func (g *nativeGraphV3) nativeObligationsV3(i nativeBillIndexV3) error {
 	return nil
 }
 
+// Rehashing an adopted row cannot change the amount/date declared by the
+// original USER configuration. External final totals only reduce the later
+// remaining amount; they never rewrite this original upper bound.
+func nativeConfiguredDebtOriginalV3(row *ledgerRow, debt planning.ForecastObligation, version policy.TemplateVersion) error {
+	config, err := version.Compiled.Decode()
+	if err != nil {
+		return businessInvalid("retained debt confirmed configuration")
+	}
+	var rule *policy.TemplateAmountRule
+	var dueDay int
+	switch value := config.(type) {
+	case *policy.RecurringObligationConfig:
+		if value.AmountRule.Kind == "bill_balance" {
+			return businessInvalid("bill amount rule cannot create an invented monthly debt")
+		}
+		rule, dueDay = &value.AmountRule, value.DueDay
+	case *policy.PeriodicTransferConfig:
+		rule, dueDay = &value.AmountRule, value.DueDay
+	case *policy.DatedExpenseConfig:
+		if debt.ID != debt.PolicyID.String()+":dated:"+value.Window.Start || row.text("kind") != "DATED" || row.text("period_key") != value.Window.Start+"/"+value.Window.End || debt.DueDate < value.Window.Start || debt.DueDate > value.Window.End || debt.Amount != value.Amount.Max {
+			return businessInvalid("dated debt exact original confirmed window and upper amount")
+		}
+		return nil
+	default:
+		return businessInvalid("template cannot create an external debt original")
+	}
+	period := row.text("period_key")
+	month, err := time.Parse("2006-01", period)
+	upper := rule.Amount
+	if rule.Kind == "range" {
+		upper = rule.Max
+	}
+	if err != nil || rule.Kind != "exact" && rule.Kind != "range" || row.text("kind") != "MONTHLY" || debt.ID != debt.PolicyID.String()+":monthly:"+period || debt.DueDate != policy.TemplateDueDate(month.Year(), month.Month(), dueDay) || debt.Amount != upper {
+		return businessInvalid("monthly debt exact original confirmed amount and calendar identity")
+	}
+	return nil
+}
+
 // Called for EVERY frozen preview/publication/permit input. A previous capture
 // does not gain current paid values or future materialized bills by replay.
 func (g *nativeGraphV3) checkBillForecastV3(input planning.ForecastInput, sourceVersion uint64) error {
@@ -405,6 +461,22 @@ func (g *nativeGraphV3) checkBillForecastV3(input planning.ForecastInput, source
 	expected := map[string]nativeVerifiedBillV3{}
 	for id, bill := range i.bills {
 		if !bill.added.After(input.AsOf) {
+			if bill.added.Equal(input.AsOf) {
+				if sourceVersion == 0 {
+					return nativeBillIncompleteV3("same-instant bill import watermark unavailable")
+				}
+				visible := false
+				for _, result := range i.results {
+					for _, imported := range result.ImportedBillIDs {
+						if "bill:"+imported.String() == id && result.SourceVersion <= sourceVersion {
+							visible = true
+						}
+					}
+				}
+				if !visible {
+					continue
+				}
+			}
 			expected[id] = bill
 		}
 	}
@@ -412,7 +484,7 @@ func (g *nativeGraphV3) checkBillForecastV3(input planning.ForecastInput, source
 	for _, fact := range input.Facts.Bills {
 		id := "bill:" + fact.ID.String()
 		bill, ok := expected[id]
-		paid := nativePaidByV3(i.payments, id, input.AsOf)
+		paid := nativePaidByV3(i.payments, id, input.AsOf, sourceVersion)
 		if !ok || seen[id] || !fact.Verified || fact.AccountID != bill.original.StatementAccountID || fact.DueDate != bill.original.DueDate || fact.Total != bill.original.FinalTotal || fact.Paid != paid {
 			return businessInvalid("forecast bill fact must use observed original and actual local receipt paid")
 		}
@@ -427,7 +499,7 @@ func (g *nativeGraphV3) checkBillForecastV3(input planning.ForecastInput, source
 		if !ok {
 			return businessInvalid("forecast external liability invented or observed too late")
 		}
-		remaining, err := bill.original.FinalTotal.Sub(nativePaidByV3(i.payments, external.ID, input.AsOf))
+		remaining, err := bill.original.FinalTotal.Sub(nativePaidByV3(i.payments, external.ID, input.AsOf, sourceVersion))
 		if err != nil || seen[external.ID] || external.DueDate != bill.original.DueDate || external.SourceHash != bill.hash || !external.Verified || external.Remaining != remaining {
 			return businessInvalid("forecast external debt remains protected even without active policy")
 		}
@@ -452,16 +524,28 @@ func (g *nativeGraphV3) nativeHistoricalDebtForecastV3(i nativeBillIndexV3, inpu
 		if nativeHashFieldV3(row, "original", "original_hash") != nil {
 			return businessInvalid("forecast retained original raw/hash")
 		}
+		if row.instant("adopted_at").Equal(input.AsOf) {
+			prior, err := g.nativeDebtPriorSourceV3(debt.VersionID)
+			if err != nil {
+				return err
+			}
+			if sourceVersion == 0 {
+				return nativeBillIncompleteV3("same-instant debt adoption watermark unavailable")
+			}
+			if sourceVersion <= prior {
+				continue
+			}
+		}
 		total := debt.Amount
 		for _, payment := range i.payments {
-			if payment.ObligationID == debt.ID && !payment.RecordedAt.After(input.AsOf) {
+			if payment.ObligationID == debt.ID && !payment.RecordedAt.After(input.AsOf) && (sourceVersion == 0 || payment.afterSourceVersion < sourceVersion) {
 				if final, ok := i.finals[debt.ID]; ok {
 					total = final
 				}
 			}
 		}
 		var err error
-		debt.Amount, err = total.Sub(nativePaidByV3(i.payments, debt.ID, input.AsOf))
+		debt.Amount, err = total.Sub(nativePaidByV3(i.payments, debt.ID, input.AsOf, sourceVersion))
 		if err != nil {
 			return businessInvalid("forecast retained debt paid arithmetic")
 		}
@@ -487,6 +571,30 @@ func (g *nativeGraphV3) nativeHistoricalDebtForecastV3(i nativeBillIndexV3, inpu
 	if len(expected) != 0 {
 		return businessInvalid("forecast omitted original retained debt after pause/version change")
 	}
-	_ = sourceVersion // source-version pin is checked by the enclosing graph
 	return g.checkedRowsV3()
+}
+
+// USER confirmation requires the exact preview SourceHash. The immediately
+// preceding persisted publication with that same hash proves which source
+// watermark still precedes a same-clock adoption; time equality alone cannot.
+func (g *nativeGraphV3) nativeDebtPriorSourceV3(version funds.ID) (uint64, error) {
+	var prior uint64
+	for _, preview := range g.rows["template_policy_previews"] {
+		if preview.text("version_id") != version.String() {
+			continue
+		}
+		for _, publication := range g.rows["template_protection_publications"] {
+			var input planning.ForecastInput
+			nativeOriginalV3(publication, "input_original", &input)
+			if input.Facts.SourceHash == preview.text("source_hash") && !publication.instant("created_at").After(preview.instant("created_at")) {
+				if value := uint64(publication.positive("source_version")); value > prior {
+					prior = value
+				}
+			}
+		}
+	}
+	if prior == 0 {
+		return 0, nativeBillIncompleteV3("same-instant debt prior exact source publication unavailable")
+	}
+	return prior, nil
 }

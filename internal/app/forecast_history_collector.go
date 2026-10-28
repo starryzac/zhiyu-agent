@@ -55,6 +55,7 @@ func (s *Service) forecastHistoryCaptures(ctx context.Context, tx pgx.Tx, p Prin
 }
 
 func (s *Service) collectForecastHistory(ctx context.Context, tx pgx.Tx, p Principal, snapshot *templateSnapshot) error {
+	collectForecastHistoryAttempts.Add(1)
 	all, raw, err := s.forecastHistoryCaptures(ctx, tx, p, snapshot.AsOf)
 	if err != nil {
 		return err

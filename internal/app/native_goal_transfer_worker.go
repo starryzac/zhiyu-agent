@@ -329,6 +329,9 @@ func (s *Service) goalTransferPermit(ctx context.Context, c Claim) (nativePermit
 		if e = s.Store.PersistNativeLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); e != nil {
 			return out, e
 		}
+		if e = s.recordNativeCancellation(ctx, tx, p, c.OperationID, Code(permissionErr)); e != nil {
+			return out, e
+		}
 		if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {
 			return out, e
 		}

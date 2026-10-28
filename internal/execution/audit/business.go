@@ -426,18 +426,21 @@ func exactJSON(a, b any) bool {
 }
 
 type businessGraph struct {
-	v2            bool
-	manifest      evidence.CaptureManifest
-	rows          map[string]map[string]*ledgerRow
-	policies      map[string]policy.Policy
-	grants        map[string]policy.Grant
-	confirmations map[string]policy.ConfirmationSource
-	plans         map[string]planning.Candidate
-	inputs        map[string]frozenBusinessInput
-	requests      map[string]execution.BankRequest
-	results       map[string][]execution.BankResult
-	reservations  map[string]funds.IncomeReservation
-	ledger        funds.IncomeLedger
+	v2 bool
+	// Only native v3 with causal originals defers the old allocation-only
+	// current-row approximation to its mandatory exact historical FV check.
+	nativePlanPrefixes bool
+	manifest           evidence.CaptureManifest
+	rows               map[string]map[string]*ledgerRow
+	policies           map[string]policy.Policy
+	grants             map[string]policy.Grant
+	confirmations      map[string]policy.ConfirmationSource
+	plans              map[string]planning.Candidate
+	inputs             map[string]frozenBusinessInput
+	requests           map[string]execution.BankRequest
+	results            map[string][]execution.BankResult
+	reservations       map[string]funds.IncomeReservation
+	ledger             funds.IncomeLedger
 }
 
 // This wire contract mirrors the immutable single-goal input, not an app
@@ -779,14 +782,16 @@ func (g *businessGraph) checkPlans() error {
 				return businessInvalid("frozen origin identity")
 			}
 		}
-		goal := g.row("goals", c.Scope.GoalID.String())
-		if in.GoalTarget != goal.money("target_cents") || in.GoalAssigned.Cents() > goal.integer("assigned_cents") {
-			return businessInvalid("frozen goal capacity is inconsistent with captured goal")
-		}
-		for _, cash := range in.Cash {
-			current := g.row("accounts", cash.AccountID.String())
-			if current == nil || cash.Currency != funds.CNY || cash.Balance != current.money("balance_cents") || cash.GoalOwned.Cents() > current.integer("goal_owned_cents") {
-				return businessInvalid("frozen cash scope or allocation-only economic balance")
+		if !g.nativePlanPrefixes {
+			goal := g.row("goals", c.Scope.GoalID.String())
+			if in.GoalTarget != goal.money("target_cents") || in.GoalAssigned.Cents() > goal.integer("assigned_cents") {
+				return businessInvalid("frozen goal capacity is inconsistent with captured goal")
+			}
+			for _, cash := range in.Cash {
+				current := g.row("accounts", cash.AccountID.String())
+				if current == nil || cash.Currency != funds.CNY || cash.Balance != current.money("balance_cents") || cash.GoalOwned.Cents() > current.integer("goal_owned_cents") {
+					return businessInvalid("frozen cash scope or allocation-only economic balance")
+				}
 			}
 		}
 		g.plans[c.ID.String()] = c

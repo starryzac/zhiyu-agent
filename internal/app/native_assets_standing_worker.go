@@ -105,6 +105,15 @@ func assetStandingStoredPermit(ctx context.Context, q queryRow, p Principal, ope
 	if err != nil {
 		return err
 	}
+	if len(raw) == 0 || len(raw) > nativeStandingAssetPermitStoredLimit {
+		return reject("ASSET_CAPACITY", nil)
+	}
+	var declared struct {
+		Protocol string `json:"protocol"`
+	}
+	if decode(raw, &declared) == nil && declared.Protocol == nativeStandingAssetPermitV2Protocol {
+		return assetStandingStoredPermitV2(ctx, q, p, operation, request, signature, raw, stored, rh, eh, sh, permit)
+	}
 	var proof nativeStandingAssetProof
 	want, e := request.Digest()
 	effect, e2 := request.Effect.Digest()
@@ -143,6 +152,13 @@ func (s *Service) assetStandingCancel(ctx context.Context, tx pgx.Tx, c Claim, p
 		return err
 	}
 	if err = finalizeNativeStandingBudget(ctx, tx, p, plan.Occurrence.ID, funds.Money{}, s.now()); err != nil {
+		return err
+	}
+	cause, err := s.nativeTerminalCancellationCause(ctx, tx, p, c.OperationID, reason)
+	if err != nil {
+		return err
+	}
+	if err = s.recordFundsTerminalDecision(ctx, tx, p, "NATIVE", c.OperationID, "CANCELLED", cause); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
@@ -318,7 +334,11 @@ func (s *Service) assetStandingPermit(ctx context.Context, c Claim) (nativePermi
 	if err != nil {
 		return out, err
 	}
-	_, err = tx.Exec(ctx, `INSERT INTO native_submission_permits(environment_id,user_id,operation_id,permit_id,bank_request_hash,effect_hash,signature_hash,original,original_hash,decision_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), out.Request.PermitID, rh, eh, proof.SignatureHash, proofRaw, Hash(proofRaw), now)
+	storedProofRaw, err := encodeNativeStandingAssetProofV2(plan, proof, proofRaw)
+	if err != nil {
+		return out, err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO native_submission_permits(environment_id,user_id,operation_id,permit_id,bank_request_hash,effect_hash,signature_hash,original,original_hash,decision_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), out.Request.PermitID, rh, eh, proof.SignatureHash, storedProofRaw, Hash(storedProofRaw), now)
 	if err != nil {
 		return out, err
 	}

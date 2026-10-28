@@ -59,7 +59,13 @@ func validateNativeActionPreview(header NativeActionPreviewHeader, original []by
 	if header.ID == (funds.ID{}) || header.Scope.EnvironmentID == (funds.ID{}) || header.Scope.UserID == (funds.ID{}) || header.SessionID == (funds.ID{}) || !nativeActionKind(header.Kind) || header.Dependencies.Validate() != nil || header.BankAuthority || !nativeActionHash(header.EffectHash) || !nativeActionHash(header.SourceHash) || !nativeActionHash(header.InventoryHash) || header.CreatedAt.IsZero() || !header.ExpiresAt.After(header.CreatedAt) || header.ExpiresAt.After(header.CreatedAt.Add(2*time.Minute)) || len(original) == 0 || len(original) > MaxNativeActionPreviewBytes {
 		return reject("INVALID_NATIVE_ACTION_PREVIEW", nil)
 	}
-	raw, e := audit.ParseRawObject(original)
+	// The fixed header schema supplies keys without encoding its values early.
+	// Strict original parsing must still precede encode(header), including on
+	// a bad original plus an unencodable header time.
+	raw, e := audit.ParseRawObjectFields(original,
+		"id", "scope", "session_id", "kind", "effect_hash", "dependencies",
+		"source_hash", "inventory_hash", "created_at", "expires_at", "bank_authority",
+	)
 	if e != nil {
 		return reject("INVALID_NATIVE_ACTION_PREVIEW", e)
 	}

@@ -146,6 +146,14 @@ func (s *Service) cancelStandingJointSuffix(ctx context.Context, tx pgx.Tx, c Cl
 		if e != nil {
 			return e
 		}
+		if status == "REJECTED" {
+			e = s.recordNativeObservedRejection(ctx, tx, p, slot.OperationID)
+		} else {
+			e = s.recordNativeCancellation(ctx, tx, p, slot.OperationID, reason)
+		}
+		if e != nil {
+			return e
+		}
 		_, e = tx.Exec(ctx, `UPDATE native_jobs SET state='FINISHED',lease_owner=NULL,lease_until=NULL,last_error=$4 WHERE environment_id=$1 AND user_id=$2 AND operation_id=$3`, p.EnvironmentID.String(), p.UserID.String(), slot.OperationID.String(), reason)
 		if e != nil {
 			return e

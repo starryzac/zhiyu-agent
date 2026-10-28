@@ -37,12 +37,14 @@ type auditTrustConfig struct {
 }
 
 func auditNativeCatalogHashesV2() map[string]string {
-	return map[string]string{"22": executionaudit.NativeAuditCatalogHashV3Revision(22), "23": executionaudit.NativeAuditCatalogHashV3Revision(23)}
+	return map[string]string{"22": executionaudit.NativeAuditCatalogHashV3Revision(22), "23": executionaudit.NativeAuditCatalogHashV3Revision(23), "25": executionaudit.NativeAuditCatalogHashV3Revision(25), "26": executionaudit.NativeAuditCatalogHashV3Revision(26)}
 }
 
 // This separate public profile preserves trust-v1's runtime digest. Only
 // approved PUBLIC profile hashes and compiled known catalogs are added; no
 // credential, DSN, private issuer key or raw source is hashed here.
+// Adding a compiled catalog requires a new v2 profile/configuration digest;
+// the old three-catalog v2 map is rejected rather than silently upgraded.
 func auditConfigurationDigestV2(c platform.Runtime, history []string) string {
 	if history == nil {
 		history = []string{}

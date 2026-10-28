@@ -170,11 +170,15 @@ func (s *Service) ProjectStep(ctx context.Context) (bool, error) {
 }
 
 func (s *Service) RunProjection(ctx context.Context) error {
+	var databaseFailures uint
 	for {
 		if ctx.Err() != nil {
 			return nil
 		}
 		worked, err := s.ProjectStep(ctx)
+		if retryBackgroundDatabase(ctx, err, &databaseFailures) {
+			continue
+		}
 		if err != nil {
 			return err
 		}

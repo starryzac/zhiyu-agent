@@ -221,8 +221,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Read owned current objects or suggest a single-goal form; never confirm or execute
-         * @description Scope is derived from the authenticated session. Input, model output and observations cannot grant USER authority. Registered tool arguments reject unknown or duplicate fields. References are rechecked before returning. OFFLINE does not contact a model. MODEL requires explicit configured provider, duration/call/token/cost budgets and verified transport bounds.
+         * Read owned objects or produce a conditional typed candidate; never confirm or execute
+         * @description Scope comes from the authenticated USER session. Thirteen registered closed tools read current owned evidence or return an IF_USER_CONFIRMED template candidate. OFFLINE never contacts a model. MODEL has text only, configured provider and original duration/call/token/cost limits. Native grant tools, data, references and derived collection digests are OFFLINE-only and never enter provider payloads or MODEL results. References are re-read before returning. No observation or candidate grants authority.
          */
         post: operations["runAgentTurn"];
         delete?: never;
@@ -1606,138 +1606,22 @@ export interface components {
             /** @enum {string} */
             verification_scope: "ACTIVITY_MEMBERSHIP_SNAPSHOT";
         };
-        AgentStatus: {
-            /** @enum {string} */
-            mode: "OFFLINE" | "MODEL_AVAILABLE";
-            /** @enum {string} */
-            provider_status: "NOT_RUN" | "CONFIGURED_NOT_VERIFIED";
-            provider_configured: boolean;
-            /** @enum {boolean} */
-            authority: false;
-        };
-        /** @description Maximum raw request 8192 UTF-8 bytes; no environment, user, authorization, amount or arbitrary URL fields. */
-        AgentTurn: components["schemas"]["AgentOfflineTurn"] | components["schemas"]["AgentModelTurn"];
-        AgentOfflineTurn: {
-            /** @enum {string} */
-            mode: "OFFLINE";
-            tool: components["schemas"]["AgentEmptyTool"] | components["schemas"]["AgentGoalTool"] | components["schemas"]["AgentOperationTool"];
-        };
-        AgentModelTurn: {
-            /** @enum {string} */
-            mode: "MODEL";
-            /** @description Additional server bound is 4096 UTF-8 bytes */
-            text: string;
-        };
-        AgentEmptyTool: {
-            /** @enum {string} */
-            name: "funds_summary" | "current_rules";
-            arguments: Record<string, never>;
-        };
-        AgentGoalTool: {
-            /** @enum {string} */
-            name: "goal_status" | "policy_candidate";
-            arguments: {
-                goal_id: components["schemas"]["ID"];
-            };
-        };
-        AgentOperationTool: {
-            /** @enum {string} */
-            name: "operation_status";
-            arguments: {
-                operation_id: components["schemas"]["ID"];
-            };
-        };
-        /** @description SHA-256 of a closed current server projection. Collection IDs name the scoped user. This is display provenance, never execution authority. */
-        AgentReference: {
-            /** @enum {string} */
-            kind: "ACCOUNT" | "GOAL" | "POLICY" | "GRANT" | "OPERATION" | "ACCOUNTS" | "RULES";
-            id: components["schemas"]["ID"];
-            digest: components["schemas"]["Digest"];
-        };
-        /** @description Navigates to the existing USER form. No model-provided amount, grant, confirmation, payment or prechecked consent exists. */
-        AgentCandidate: {
-            /** @enum {string} */
-            template: "SINGLE_GOAL";
-            goal_id: components["schemas"]["ID"];
-            reference: components["schemas"]["AgentReference"];
-            /** @enum {boolean} */
-            requires_user_fields: true;
-            /** @enum {boolean} */
-            bank_authority: false;
-        };
-        AgentPolicyView: {
-            id: components["schemas"]["ID"];
-            goal_id: components["schemas"]["ID"];
-            version: components["schemas"]["Version"];
-            /** @enum {string} */
-            status: "ACTIVE" | "PAUSED" | "REVOKED" | "EXPIRED";
-            max_amount: components["schemas"]["Money"];
-            valid_until: components["schemas"]["Timestamp"];
-        };
-        AgentGrantView: {
-            id: components["schemas"]["ID"];
-            policy_id: components["schemas"]["ID"];
-            /** @enum {string} */
-            status: "ACTIVE" | "PAUSED" | "REVOKED" | "EXPIRED";
-            max_amount: components["schemas"]["Money"];
-            valid_until: components["schemas"]["Timestamp"];
-        };
-        AgentOperationView: {
-            id: components["schemas"]["ID"];
-            plan_id: components["schemas"]["ID"];
-            state: components["schemas"]["OperationState"];
-            amount_cents: components["schemas"]["Money"];
-            version: components["schemas"]["Version"];
-            receipt_id?: components["schemas"]["ID"];
-            bank_observed_status?: string;
-            processing_health: string;
-        };
-        AgentObservation: {
-            /** @enum {string} */
-            tool: "funds_summary" | "current_rules" | "goal_status" | "operation_status" | "policy_candidate";
-            as_of: components["schemas"]["Timestamp"];
-            summary: string;
-            /** @enum {string} */
-            verification_scope: "DISPLAY_SNAPSHOT";
-            references: components["schemas"]["AgentReference"][];
-            accounts?: components["schemas"]["Account"][];
-            goals?: components["schemas"]["Goal"][];
-            policies?: components["schemas"]["AgentPolicyView"][];
-            grants?: components["schemas"]["AgentGrantView"][];
-            operations?: components["schemas"]["AgentOperationView"][];
-            candidate?: components["schemas"]["AgentCandidate"];
-        };
-        /** @description Worst-case reservation is charged before each provider call and never refunded based on self-reported usage. Real provider pricing and token transport bounds require separate verification. */
-        AgentBudget: {
-            provider_calls: number;
-            tool_calls: number;
-            /** Format: int64 */
-            reserved_tokens: number;
-            /** Format: int64 */
-            reserved_cost_micros: number;
-        };
-        AgentResult: {
-            /** @enum {string} */
-            mode: "OFFLINE" | "MODEL";
-            /** @enum {string} */
-            provider_status: "NOT_RUN" | "CALLED";
-            model_used: boolean;
-            observations: components["schemas"]["AgentObservation"][];
-            candidate?: components["schemas"]["AgentCandidate"];
-            references: components["schemas"]["AgentReference"][];
-            budget: components["schemas"]["AgentBudget"];
-            provider_usage: components["schemas"]["AgentProviderUsage"];
-            /** @enum {boolean} */
-            authority: false;
-        };
-        /** @description Aggregate valid provider-reported usage, separate from worst-case Budget reservations. This is not independent invoice verification. OFFLINE reports zero calls and tokens. */
-        AgentProviderUsage: {
-            /** Format: int64 */
-            input_tokens: number;
-            /** Format: int64 */
-            output_tokens: number;
-            reported_calls: number;
-        };
+        AgentStatus: components["schemas"]["NativeAgentStatus"];
+        AgentTurn: components["schemas"]["NativeAgentTurn"];
+        AgentOfflineTurn: components["schemas"]["NativeAgentOfflineTurn"];
+        AgentModelTurn: components["schemas"]["NativeAgentModelTurn"];
+        AgentEmptyTool: components["schemas"]["NativeAgentEmptyTool"];
+        AgentGoalTool: components["schemas"]["NativeAgentGoalTool"];
+        AgentOperationTool: components["schemas"]["NativeAgentOperationTool"];
+        AgentReference: components["schemas"]["NativeAgentReference"];
+        AgentCandidate: components["schemas"]["NativeAgentCandidate"];
+        AgentPolicyView: components["schemas"]["NativeAgentPolicy"];
+        AgentGrantView: components["schemas"]["NativeAgentGrant"];
+        AgentOperationView: components["schemas"]["NativeAgentOperation"];
+        AgentObservation: components["schemas"]["NativeAgentObservation"];
+        AgentBudget: components["schemas"]["NativeAgentBudget"];
+        AgentResult: components["schemas"]["NativeAgentResult"];
+        AgentProviderUsage: components["schemas"]["NativeAgentProviderUsage"];
         ApiError: {
             code: string;
             message: string;
@@ -1815,6 +1699,485 @@ export interface components {
             BankKey: string;
             Reserved: components["schemas"]["Money"];
         };
+        NativeAgentAccount: {
+            balance_cents: components["schemas"]["Money"];
+            goal_owned_cents: components["schemas"]["Money"];
+            id: components["schemas"]["ID"];
+            name: string;
+        };
+        NativeAgentBudget: {
+            provider_calls: number;
+            /** Format: int64 */
+            reserved_cost_micros: number;
+            /** Format: int64 */
+            reserved_tokens: number;
+            tool_calls: number;
+        };
+        NativeAgentCandidate: {
+            /** @enum {boolean} */
+            bank_authority: false;
+            goal_id: components["schemas"]["ID"];
+            reference: components["schemas"]["NativeAgentReference"];
+            /** @enum {boolean} */
+            requires_user_fields: true;
+            /** @enum {string} */
+            template: "SINGLE_GOAL";
+        };
+        NativeAgentEmptyTool: {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "funds_summary";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "current_rules";
+        };
+        NativeAgentError: components["schemas"]["ApiError"] & {
+            /** @enum {string} */
+            code?: "AGENT_UNAVAILABLE" | "AGENT_INVALID_INPUT" | "AGENT_STALE_REFERENCE" | "AGENT_BUDGET_EXCEEDED" | "AGENT_PROVIDER_NOT_CONFIGURED" | "AGENT_TIMEOUT";
+            details?: components["schemas"]["NativeAgentFailureDetails"];
+            /** @enum {string} */
+            retry_class?: "USE_OFFLINE" | "NEVER" | "AFTER_REFRESH";
+        };
+        /** @description Finite safe failure stage and validated counters only. No raw error, SQL, provider body, object IDs, connection values or secret. Reserved calls do not prove requests arrived; missing usage remains unknown, not free. */
+        NativeAgentFailureDetails: {
+            /** @enum {string} */
+            failure_protocol: "zhiyu-agent-failure-v1";
+            /** @enum {string} */
+            failure_reason: "REJECTED" | "RESERVE_CONFIGURATION" | "RESERVE_INPUT_BYTES" | "RESERVE_CALLS" | "RESERVE_TOKENS" | "RESERVE_COST" | "TOOL_CALLS" | "REPORTED_USAGE";
+            /** @enum {string} */
+            failure_stage: "BODY_DECODE" | "TURN_DECODE" | "SNAPSHOT_READ" | "SNAPSHOT_VALIDATE" | "INPUT_ENCODE" | "RESERVE" | "PROVIDER_CONFIGURATION" | "PROVIDER" | "PROVIDER_REPLY_SCHEMA" | "PROVIDER_USAGE" | "PROVIDER_ENVELOPE" | "PROVIDER_HTTP_STATUS" | "PROVIDER_RESPONSE" | "USAGE" | "REPLY_DECODE" | "MODEL_TOOL_SCOPE" | "DONE_WITHOUT_OBSERVATION" | "REPEAT_TOOL" | "TOOL_REFERENCE" | "TOOL_LIMIT" | "OBSERVE" | "OBSERVATION_SIZE" | "CONTEXT" | "FRESH_SNAPSHOT" | "FRESH_REFERENCES" | "FINAL_SIZE" | "UNKNOWN";
+            provider_calls_reserved: string;
+            reserved_cost_micros: string;
+            reserved_tokens: string;
+            tool_calls_consumed: string;
+            /** @enum {string} */
+            usage_scope: "PARTIAL_UNKNOWN_ATTEMPTS_NOT_INVOICE" | "NO_PROVIDER_RESERVATIONS" | "VALIDATED_RETURNED_REPLIES_ONLY_NOT_INVOICE";
+            validated_input_tokens: string;
+            validated_output_tokens: string;
+            validated_reported_calls: string;
+        };
+        NativeAgentForecastObservation: {
+            /** @enum {boolean} */
+            bank_authority: false;
+            reasons: string[];
+            result?: components["schemas"]["NativePlanningForecastResult"] | null;
+            /** @enum {string} */
+            state: "INCOMPLETE" | "READY" | "PROTECTION_DEFICIT";
+        };
+        NativeAgentGoal: {
+            account_id: components["schemas"]["ID"];
+            assigned_cents: components["schemas"]["Money"];
+            id: components["schemas"]["ID"];
+            name: string;
+            target_cents: components["schemas"]["Money"];
+        };
+        NativeAgentGoalTool: {
+            arguments: {
+                /** Format: uuid */
+                goal_id: string;
+            };
+            /** @enum {string} */
+            name: "goal_status";
+        } | {
+            arguments: {
+                /** Format: uuid */
+                goal_id: string;
+            };
+            /** @enum {string} */
+            name: "policy_candidate";
+        };
+        NativeAgentGrant: {
+            id: components["schemas"]["ID"];
+            max_amount: components["schemas"]["Money"];
+            policy_id: components["schemas"]["ID"];
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "REVOKED" | "EXPIRED";
+            valid_until: components["schemas"]["Timestamp"];
+        };
+        /** @description Positive integer cents at most funds.MaxMoneyCents (9000000000000000); reviewed limit, never executable cash. */
+        NativeAgentGrantCap: string;
+        /** @enum {string} */
+        NativeAgentGrantReason: "CAPACITY" | "SCHEMA_UNAVAILABLE" | "EVIDENCE_INVALID" | "SUBJECT_UNAVAILABLE" | "SESSION_EXPIRED_AT_EVENT" | "SESSION_REVOCATION_HISTORY_UNAVAILABLE" | "POLICY_CHANGED" | "POLICY_UNAVAILABLE" | "NOT_YET_EFFECTIVE" | "EXPIRED" | "PAUSED" | "REVOKED";
+        NativeAgentJointObservation: {
+            /** @enum {boolean} */
+            bank_authority: false;
+            /** @enum {string} */
+            mode: "READ_ONLY_NOT_EXECUTABLE";
+            reasons: string[];
+            result?: components["schemas"]["NativePlanningJointPlan"] | null;
+            /** @enum {string} */
+            state: "INCOMPLETE" | "UNKNOWN" | "INFEASIBLE" | "OPTIMAL";
+        };
+        NativeAgentModelCandidate: {
+            /** @enum {boolean} */
+            bank_authority: false;
+            goal_id: components["schemas"]["ID"];
+            reference: components["schemas"]["NativeAgentModelReference"];
+            /** @enum {boolean} */
+            requires_user_fields: true;
+            /** @enum {string} */
+            template: "SINGLE_GOAL";
+        };
+        NativeAgentModelObservation: {
+            accounts?: components["schemas"]["NativeAgentAccount"][];
+            as_of: components["schemas"]["Timestamp"];
+            candidate?: components["schemas"]["NativeAgentModelCandidate"];
+            catalog?: components["schemas"]["NativeAgentTemplateDescriptor"][];
+            forecast?: components["schemas"]["NativeAgentForecastObservation"] | null;
+            goals?: components["schemas"]["NativeAgentGoal"][];
+            grants?: components["schemas"]["NativeAgentGrant"][];
+            joint?: components["schemas"]["NativeAgentJointObservation"] | null;
+            native_candidate?: components["schemas"]["NativeAgentModelTemplateCandidate"];
+            native_rules?: components["schemas"]["NativeAgentNativeRule"][];
+            object?: components["schemas"]["NativeAgentObjectObservation"] | null;
+            objects?: components["schemas"]["NativeAgentObjectObservation"][];
+            operations?: components["schemas"]["NativeAgentOperation"][];
+            policies?: components["schemas"]["NativeAgentPolicy"][];
+            references: components["schemas"]["NativeAgentModelReference"][];
+            summary: string;
+            /** @enum {string} */
+            tool: "funds_summary" | "current_rules" | "goal_status" | "operation_status" | "policy_candidate" | "original_objects" | "template_catalog" | "native_rules" | "forecast365" | "joint_preview" | "object_status" | "template_candidate";
+            /** @enum {string} */
+            verification_scope: "DISPLAY_SNAPSHOT";
+        };
+        NativeAgentModelReference: {
+            digest: components["schemas"]["Digest"];
+            id: components["schemas"]["ID"];
+            /** @enum {string} */
+            kind: "ACCOUNT" | "GOAL" | "POLICY" | "GRANT" | "OPERATION" | "ACCOUNTS" | "RULES" | "NATIVE_CONTEXT" | "NATIVE_POLICY" | "NATIVE_VERSION" | "NATIVE_PLAN" | "NATIVE_OPERATION" | "NATIVE_POSITION" | "NATIVE_QUESTION" | "NATIVE_PAYEE";
+        };
+        NativeAgentModelTemplateCandidate: {
+            /** @enum {boolean} */
+            bank_authority: false;
+            compiled: components["schemas"]["NativePolicyCompiledTemplate"];
+            forecast?: components["schemas"]["NativePlanningForecastResult"] | null;
+            goal_id?: components["schemas"]["ID"] | null;
+            /** @enum {string} */
+            mode: "IF_USER_CONFIRMED";
+            policy_id?: components["schemas"]["ID"] | null;
+            preview?: components["schemas"]["NativePolicyTemplatePreview"] | null;
+            reasons: string[];
+            reference: components["schemas"]["NativeAgentModelReference"];
+            /** @enum {boolean} */
+            requires_user_confirmation: true;
+            /** @enum {string} */
+            state: "INCOMPLETE" | "CONFIRMED" | "READY" | "OUT_OF_AUTHORIZATION" | "NO_ACTION" | "MINIMUM_SHORTFALL" | "CONSTRAINTS_READY" | "FLOOR_RELEASED" | "ADVICE_ONLY" | "SILENT_STABLE_OR_DEDUPLICATED" | "USER_QUESTION_REQUIRED" | "COMPLETE" | "MONTHLY_MAX_ALREADY_EXCEEDED" | "HARD_GUARANTEE_SHORTFALL" | "DEADLINE_BLOCKED" | "PARTIAL" | "OVERDUE_READY";
+        };
+        NativeAgentModelTurn: {
+            /** @enum {string} */
+            mode: "MODEL";
+            text: string;
+        };
+        /** @description OFFLINE only. COMPLETE count equals all sorted owned items; UNAVAILABLE omits count, never reports unknown as zero. Historical session scope is explicit and is not current execution authority. */
+        NativeAgentNativeGrantCollection: {
+            /** @enum {boolean} */
+            authority: false;
+            /** @enum {boolean} */
+            bank_authority: false;
+            collection_digest: components["schemas"]["Digest"];
+            count?: number;
+            items: components["schemas"]["NativeAgentNativeGrantDisplay"][];
+            /** @enum {string} */
+            protocol: "zhiyu-agent-native-grants-v1";
+            reason_codes: components["schemas"]["NativeAgentGrantReason"][];
+            /** @enum {string} */
+            session_verification: "SCOPED_SUBJECT_AND_EVENT_EXPIRY_ONLY" | "HISTORY_INCOMPLETE" | "NOT_VERIFIED";
+            /** @enum {string} */
+            status: "COMPLETE" | "UNAVAILABLE";
+            /** @enum {string} */
+            verification_scope: "OWNED_ORIGINALS_AND_COMPLETE_GRANT_STATE_CHAIN" | "NOT_VERIFIED";
+        } & ({
+            reason_codes?: unknown;
+            /** @enum {string} */
+            session_verification?: "SCOPED_SUBJECT_AND_EVENT_EXPIRY_ONLY" | "HISTORY_INCOMPLETE";
+            /** @enum {string} */
+            status?: "COMPLETE";
+            /** @enum {string} */
+            verification_scope?: "OWNED_ORIGINALS_AND_COMPLETE_GRANT_STATE_CHAIN";
+        } | {
+            items?: unknown;
+            reason_codes?: unknown;
+            /** @enum {string} */
+            session_verification?: "NOT_VERIFIED";
+            /** @enum {string} */
+            status?: "UNAVAILABLE";
+            /** @enum {string} */
+            verification_scope?: "NOT_VERIFIED";
+        });
+        /** @description OFFLINE only. Original caps and complete lifecycle display, not authority. Sorted unique lists, family policy/scope, cap ordering, same-state reasons, expiry/day and original chain are checked by the domain; schema validation does not replace those checks. No session, grant raw bytes, signature or executable budget is exposed. */
+        NativeAgentNativeGrantDisplay: {
+            account_ids: components["schemas"]["ID"][];
+            /** @enum {boolean} */
+            authority: false;
+            /** @enum {boolean} */
+            bank_authority: false;
+            chain_digest: components["schemas"]["Digest"];
+            effective_from: components["schemas"]["Timestamp"];
+            /** @enum {string} */
+            effective_state: "REVOKED" | "EXPIRED" | "PAUSED" | "NOT_YET_EFFECTIVE" | "POLICY_CHANGED" | "UNAVAILABLE" | "CURRENT_DISPLAY_ONLY";
+            /** Format: date */
+            evaluated_local_date: string;
+            expires_at: components["schemas"]["Timestamp"];
+            /** @enum {string} */
+            family: "SINGLE_GOAL" | "JOINT_GOALS" | "ASSET_ALLOCATION" | "MATURITY_REINVEST" | "PERIODIC_PAYMENT";
+            goal_ids: components["schemas"]["ID"][];
+            id: components["schemas"]["ID"];
+            lifetime_cap_cents: components["schemas"]["NativeAgentGrantCap"];
+            monthly_cap_cents: components["schemas"]["NativeAgentGrantCap"];
+            original_digest: components["schemas"]["Digest"];
+            payee_ids: string[];
+            policy_references: components["schemas"]["NativePolicyNativePolicyReference"][];
+            product_ids: string[];
+            reason_codes: components["schemas"]["NativeAgentGrantReason"][];
+            /** @enum {string} */
+            recorded_state: "ACTIVE" | "PAUSED" | "REVOKED";
+            single_cap_cents: components["schemas"]["NativeAgentGrantCap"];
+            state_at: components["schemas"]["Timestamp"];
+            state_sequence: number;
+            terms_digest: components["schemas"]["Digest"];
+            timezone: string;
+            /** @enum {integer} */
+            version: 1;
+        };
+        NativeAgentNativeRule: {
+            /** @enum {string} */
+            effective_state: "ACTIVE" | "CONFIRMED" | "CONFIRMATION_IN_FUTURE" | "SUSPENDED" | "REVOKED" | "EXPIRED";
+            goal_id?: components["schemas"]["ID"] | null;
+            timezone: string;
+            version: components["schemas"]["NativePolicyTemplateVersion"];
+        };
+        NativeAgentObjectObservation: {
+            data: {
+                [key: string]: unknown;
+            };
+            id: components["schemas"]["ID"];
+            /** @enum {string} */
+            kind: "ACCOUNT" | "GOAL" | "POLICY" | "GRANT" | "OPERATION" | "NATIVE_POLICY" | "NATIVE_VERSION" | "NATIVE_PLAN" | "NATIVE_OPERATION" | "NATIVE_POSITION" | "NATIVE_QUESTION" | "NATIVE_PAYEE";
+        };
+        NativeAgentObservation: {
+            accounts?: components["schemas"]["NativeAgentAccount"][];
+            as_of: components["schemas"]["Timestamp"];
+            candidate?: components["schemas"]["NativeAgentCandidate"] | null;
+            catalog?: components["schemas"]["NativeAgentTemplateDescriptor"][];
+            forecast?: components["schemas"]["NativeAgentForecastObservation"] | null;
+            goals?: components["schemas"]["NativeAgentGoal"][];
+            grants?: components["schemas"]["NativeAgentGrant"][];
+            joint?: components["schemas"]["NativeAgentJointObservation"] | null;
+            native_candidate?: components["schemas"]["NativeAgentTemplateCandidate"] | null;
+            native_grant?: components["schemas"]["NativeAgentNativeGrantDisplay"] | null;
+            native_grants?: components["schemas"]["NativeAgentNativeGrantCollection"] | null;
+            native_rules?: components["schemas"]["NativeAgentNativeRule"][];
+            object?: components["schemas"]["NativeAgentObjectObservation"] | null;
+            objects?: components["schemas"]["NativeAgentObjectObservation"][];
+            operations?: components["schemas"]["NativeAgentOperation"][];
+            policies?: components["schemas"]["NativeAgentPolicy"][];
+            references: components["schemas"]["NativeAgentReference"][];
+            summary: string;
+            /** @enum {string} */
+            tool: "funds_summary" | "current_rules" | "goal_status" | "operation_status" | "policy_candidate" | "native_grants" | "original_objects" | "template_catalog" | "native_rules" | "forecast365" | "joint_preview" | "object_status" | "template_candidate";
+            /** @enum {string} */
+            verification_scope: "DISPLAY_SNAPSHOT";
+        };
+        NativeAgentOfflineTurn: {
+            /** @enum {string} */
+            mode: "OFFLINE";
+            tool: components["schemas"]["NativeAgentToolCall"];
+        };
+        NativeAgentOperation: {
+            amount_cents: components["schemas"]["Money"];
+            bank_observed_status?: string;
+            id: components["schemas"]["ID"];
+            plan_id: components["schemas"]["ID"];
+            processing_health: string;
+            receipt_id?: components["schemas"]["ID"];
+            state: components["schemas"]["OperationState"];
+            version: components["schemas"]["Version"];
+        };
+        NativeAgentOperationTool: {
+            arguments: {
+                /** Format: uuid */
+                operation_id: string;
+            };
+            /** @enum {string} */
+            name: "operation_status";
+        };
+        NativeAgentPolicy: {
+            goal_id: components["schemas"]["ID"];
+            id: components["schemas"]["ID"];
+            max_amount: components["schemas"]["Money"];
+            /** @enum {string} */
+            status: "ACTIVE" | "PAUSED" | "REVOKED" | "EXPIRED";
+            valid_until: components["schemas"]["Timestamp"];
+            version: components["schemas"]["Version"];
+        };
+        /** @description Validated returned replies only, never independent invoice verification. Reserved calls/cost are not refunded for unknown failed attempts. */
+        NativeAgentProviderUsage: {
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            reported_calls: number;
+        };
+        NativeAgentReference: {
+            digest: components["schemas"]["Digest"];
+            id: components["schemas"]["ID"];
+            /** @enum {string} */
+            kind: "ACCOUNT" | "GOAL" | "POLICY" | "GRANT" | "OPERATION" | "ACCOUNTS" | "RULES" | "NATIVE_CONTEXT" | "NATIVE_POLICY" | "NATIVE_VERSION" | "NATIVE_PLAN" | "NATIVE_OPERATION" | "NATIVE_POSITION" | "NATIVE_QUESTION" | "NATIVE_PAYEE" | "NATIVE_GRANT" | "NATIVE_GRANTS";
+        };
+        NativeAgentResult: {
+            /** @enum {boolean} */
+            authority: false;
+            budget: components["schemas"]["NativeAgentBudget"];
+            candidate?: components["schemas"]["NativeAgentCandidate"] | null;
+            /** @enum {string} */
+            mode: "OFFLINE" | "MODEL";
+            model_used: boolean;
+            native_candidate?: components["schemas"]["NativeAgentTemplateCandidate"] | null;
+            observations: components["schemas"]["NativeAgentObservation"][];
+            /** @enum {string} */
+            provider_status: "NOT_RUN" | "CALLED";
+            provider_usage: components["schemas"]["NativeAgentProviderUsage"];
+            references: components["schemas"]["NativeAgentReference"][];
+        } & ({
+            /** @enum {string} */
+            mode?: "OFFLINE";
+            /** @enum {boolean} */
+            model_used?: false;
+            observations?: unknown;
+            /** @enum {string} */
+            provider_status?: "NOT_RUN";
+        } | {
+            candidate?: components["schemas"]["NativeAgentModelCandidate"];
+            /** @enum {string} */
+            mode?: "MODEL";
+            /** @enum {boolean} */
+            model_used?: true;
+            native_candidate?: components["schemas"]["NativeAgentModelTemplateCandidate"];
+            observations?: components["schemas"]["NativeAgentModelObservation"][];
+            /** @enum {string} */
+            provider_status?: "CALLED";
+            references?: components["schemas"]["NativeAgentModelReference"][];
+        });
+        NativeAgentStatus: {
+            /** @enum {boolean} */
+            authority: false;
+            /** @enum {string} */
+            mode: "OFFLINE" | "MODEL_AVAILABLE";
+            provider_configured: boolean;
+            /** @enum {string} */
+            provider_status: "NOT_RUN" | "CONFIGURED_NOT_VERIFIED";
+        } & ({
+            /** @enum {string} */
+            mode?: "OFFLINE";
+            /** @enum {boolean} */
+            provider_configured?: false;
+            /** @enum {string} */
+            provider_status?: "NOT_RUN";
+        } | {
+            /** @enum {string} */
+            mode?: "MODEL_AVAILABLE";
+            /** @enum {boolean} */
+            provider_configured?: true;
+            /** @enum {string} */
+            provider_status?: "CONFIGURED_NOT_VERIFIED";
+        });
+        NativeAgentTemplateCandidate: {
+            /** @enum {boolean} */
+            bank_authority: false;
+            compiled: components["schemas"]["NativePolicyCompiledTemplate"];
+            forecast?: components["schemas"]["NativePlanningForecastResult"] | null;
+            goal_id?: components["schemas"]["ID"] | null;
+            /** @enum {string} */
+            mode: "IF_USER_CONFIRMED";
+            policy_id?: components["schemas"]["ID"] | null;
+            preview?: components["schemas"]["NativePolicyTemplatePreview"] | null;
+            reasons: string[];
+            reference: components["schemas"]["NativeAgentReference"];
+            /** @enum {boolean} */
+            requires_user_confirmation: true;
+            /** @enum {string} */
+            state: "INCOMPLETE" | "CONFIRMED" | "READY" | "OUT_OF_AUTHORIZATION" | "NO_ACTION" | "MINIMUM_SHORTFALL" | "CONSTRAINTS_READY" | "FLOOR_RELEASED" | "ADVICE_ONLY" | "SILENT_STABLE_OR_DEDUPLICATED" | "USER_QUESTION_REQUIRED" | "COMPLETE" | "MONTHLY_MAX_ALREADY_EXCEEDED" | "HARD_GUARANTEE_SHORTFALL" | "DEADLINE_BLOCKED" | "PARTIAL" | "OVERDUE_READY";
+        };
+        NativeAgentTemplateDescriptor: {
+            example_configuration?: components["schemas"]["NativeTemplateConfiguration"];
+            fields: string[];
+            /** @enum {string} */
+            template_name: "RecurringObligationPolicy" | "LivingReservePolicy" | "EmergencyBufferPolicy" | "DatedExpensePolicy" | "LongTermGoalPolicy" | "PeriodicTransferPolicy" | "AssetAuthorizationPolicy" | "RecoveryPolicy" | "GoalAllocationPolicy" | "CrossGoalReallocationPolicy" | "SeasonalReservePolicy" | "InterventionPolicy";
+        };
+        NativeAgentToolCall: {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "funds_summary";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "current_rules";
+        } | {
+            arguments: {
+                /** Format: uuid */
+                goal_id: string;
+            };
+            /** @enum {string} */
+            name: "goal_status";
+        } | {
+            arguments: {
+                /** Format: uuid */
+                operation_id: string;
+            };
+            /** @enum {string} */
+            name: "operation_status";
+        } | {
+            arguments: {
+                /** Format: uuid */
+                goal_id: string;
+            };
+            /** @enum {string} */
+            name: "policy_candidate";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "native_grants";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "original_objects";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "template_catalog";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "native_rules";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "forecast365";
+        } | {
+            arguments: Record<string, never>;
+            /** @enum {string} */
+            name: "joint_preview";
+        } | {
+            arguments: {
+                reference: components["schemas"]["NativeAgentReference"];
+            };
+            /** @enum {string} */
+            name: "object_status";
+        } | {
+            arguments: {
+                configuration: components["schemas"]["NativeTemplateConfiguration"];
+                goal_id?: components["schemas"]["ID"];
+                policy_id?: components["schemas"]["ID"];
+                /** @enum {string} */
+                template_name: "RecurringObligationPolicy" | "LivingReservePolicy" | "EmergencyBufferPolicy" | "DatedExpensePolicy" | "LongTermGoalPolicy" | "PeriodicTransferPolicy" | "AssetAuthorizationPolicy" | "RecoveryPolicy" | "GoalAllocationPolicy" | "CrossGoalReallocationPolicy" | "SeasonalReservePolicy" | "InterventionPolicy";
+            };
+            /** @enum {string} */
+            name: "template_candidate";
+        };
+        /** @description Authenticated scope only. OFFLINE has exactly one registered closed tool; MODEL has only bounded text. No USER authority is accepted. Native grant tools/references/data are OFFLINE-only and never sent to a provider. */
+        NativeAgentTurn: components["schemas"]["NativeAgentOfflineTurn"] | components["schemas"]["NativeAgentModelTurn"];
         NativeAppActivity: {
             aggregate_id: components["schemas"]["ID"];
             /** Format: int64 */
@@ -2585,6 +2948,7 @@ export interface components {
             facts: components["schemas"]["NativePolicyTemplateFacts"];
             facts_hash: string;
             forecast: components["schemas"]["NativePlanningForecastResult"];
+            forecast_input?: components["schemas"]["NativePlanningForecastInput"] | null;
             goal_id?: components["schemas"]["ID"] | null;
             id: components["schemas"]["ID"];
             mode: string;
@@ -2592,7 +2956,13 @@ export interface components {
             preview: components["schemas"]["NativePolicyTemplatePreview"];
             reviewed_bundle_hash: string;
             scope: components["schemas"]["NativePolicyTemplateOwnerScope"];
+            /** Format: int64 */
+            snapshot_funds_version?: number;
+            /** Format: int64 */
+            snapshot_source_version?: number;
             source_hash: string;
+            source_witness_hash?: string;
+            source_witness_id?: components["schemas"]["ID"] | null;
             target_mutation?: components["schemas"]["NativeAppTemplateGoalTargetMutation"] | null;
             timezone: string;
             version_id: components["schemas"]["ID"];
@@ -4154,11 +4524,51 @@ export interface operations {
                     "application/json": components["schemas"]["AgentResult"];
                 };
             };
-            400: components["responses"]["Failure"];
-            409: components["responses"]["Failure"];
-            429: components["responses"]["Failure"];
-            503: components["responses"]["Failure"];
-            504: components["responses"]["Failure"];
+            /** @description Bounded safe Agent failure labels and validated counters; unknown usage is not an invoice or zero cost. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeAgentError"];
+                };
+            };
+            /** @description Bounded safe Agent failure labels and validated counters; unknown usage is not an invoice or zero cost. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeAgentError"];
+                };
+            };
+            /** @description Bounded safe Agent failure labels and validated counters; unknown usage is not an invoice or zero cost. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeAgentError"];
+                };
+            };
+            /** @description Bounded safe Agent failure labels and validated counters; unknown usage is not an invoice or zero cost. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeAgentError"];
+                };
+            };
+            /** @description Bounded safe Agent failure labels and validated counters; unknown usage is not an invoice or zero cost. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeAgentError"];
+                };
+            };
             default: components["responses"]["Failure"];
         };
     };

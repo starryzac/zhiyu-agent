@@ -1,0 +1,5 @@
+packages: []
+storeDir: .pnpm-store
+allowBuilds:
+  esbuild: true
+  '@tailwindcss/oxide': true

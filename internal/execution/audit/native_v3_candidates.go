@@ -37,6 +37,9 @@ func (g *nativeGraphV3) frozenForecastV3(input planning.ForecastInput, result pl
 	if err := g.checkHistoryFactsV3(input.Facts, input.AsOf, input.Timezone, sourceVersion); err != nil {
 		return err
 	}
+	if err := g.checkBillForecastV3(input, sourceVersion); err != nil {
+		return err
+	}
 	if input.Scope != g.ownerScopeV3() || len(input.FutureIncome) != 0 || len(input.PrincipalReturns) != 0 {
 		return businessInvalid("native protection cannot execute forecast income or unarrived principal")
 	}
@@ -129,6 +132,9 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 		if err := g.humanAtV3(plan.SessionID, plan.CreatedAt); err != nil {
 			return err
 		}
+		if err := g.queueForecastConsumerV3(nativeForecastEconomicConsumerV3{input: plan.Input.ProtectionForecast, dependencies: plan.Dependencies, income: &plan.Input.Ledger}); err != nil {
+			return err
+		}
 		g.jointPlans[plan.ID.String()] = plan
 	}
 	for _, row := range g.rows["native_action_previews"] {
@@ -145,10 +151,11 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 			if err := mirrorreplayNativeAssetPreviewV3(p); err != nil {
 				return nativeMirrorCheckV3("asset preview", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Ledger, p.CreatedAt); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Ledger, p.CreatedAt)
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.ForecastInput, p.ForecastBefore, p.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.ForecastInput, p.ForecastBefore, ledger, p.Dependencies); err != nil {
 				return err
 			}
 			g.nativeActions[p.ID.String()] = p
@@ -161,10 +168,11 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 			if err := mirrorreplayNativePaymentPreviewV3(p); err != nil {
 				return nativeMirrorCheckV3("payment preview", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Ledger, p.CreatedAt); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Ledger, p.CreatedAt)
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.ForecastInput, p.ForecastBefore, p.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.ForecastInput, p.ForecastBefore, ledger, p.Dependencies); err != nil {
 				return err
 			}
 			g.nativeActions[p.ID.String()] = p
@@ -176,6 +184,9 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 			}
 			if err := mirrorreplayGoalTransferPreviewV3(p); err != nil {
 				return nativeMirrorCheckV3("paired goal preview", err)
+			}
+			if err := g.queueForecastEconomyV3(p.ForecastInput, p.Dependencies, nil); err != nil {
+				return err
 			}
 			if err := g.frozenForecastV3(p.ForecastInput, p.ForecastBefore, p.Dependencies.SourceEvidenceVersion); err != nil {
 				return err
@@ -228,7 +239,7 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 			if err := g.grantActiveAtV3(grant.ID.String(), p.GrantStateSequence, p.CreatedAt); err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Candidate.ForecastInput, p.Candidate.ForecastBefore, p.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Candidate.ForecastInput, p.Candidate.ForecastBefore, ledger, p.Dependencies); err != nil {
 				return err
 			}
 			if err := g.frozenForecastV3(p.Candidate.ForecastAfterInput, p.Candidate.ForecastAfter, p.Dependencies.SourceEvidenceVersion); err != nil {
@@ -251,10 +262,11 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 			if err := mirrorstandingAssetReplayCurrentV3(p, p.Preview); err != nil {
 				return nativeMirrorCheckV3("standing asset", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Preview.Ledger, p.Preview.CreatedAt); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Preview.Ledger, p.Preview.CreatedAt)
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Preview.ForecastInput, p.Preview.ForecastBefore, p.Preview.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Preview.ForecastInput, p.Preview.ForecastBefore, ledger, p.Preview.Dependencies); err != nil {
 				return err
 			}
 			plan.asset = &p
@@ -270,10 +282,11 @@ func (g *nativeGraphV3) checkCandidatesV3() error {
 			if err := mirrorreplayNativePaymentPreviewV3(p.Preview); err != nil {
 				return nativeMirrorCheckV3("standing payment", err)
 			}
-			if _, err := g.frozenLedgerV3(p.Preview.Ledger, p.Preview.CreatedAt); err != nil {
+			ledger, err := g.frozenLedgerV3(p.Preview.Ledger, p.Preview.CreatedAt)
+			if err != nil {
 				return err
 			}
-			if err := g.frozenForecastV3(p.Preview.ForecastInput, p.Preview.ForecastBefore, p.Preview.Dependencies.SourceEvidenceVersion); err != nil {
+			if err := g.frozenForecastEconomyV3(p.Preview.ForecastInput, p.Preview.ForecastBefore, ledger, p.Preview.Dependencies); err != nil {
 				return err
 			}
 			plan.payment = &p

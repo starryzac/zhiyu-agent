@@ -44,14 +44,23 @@ func ceilingCost(tokens, price int64) int64 { return (tokens*price + 999999) / 1
 // 4096 protocol tokens is a finite reservation contract for an adapter, not a
 // tokenizer claim: real transport must reject input outside this same bound.
 func (b *Budget) Reserve(l Limits, inputBytes int) (Reservation, error) {
-	if l.Validate() != nil || l.InputPriceMicrosPerMillion == 0 || l.OutputPriceMicrosPerMillion == 0 || inputBytes < 0 || inputBytes > l.MaxInputBytes || b.ProviderCalls >= l.MaxProviderCalls {
-		return Reservation{}, ErrBudget
+	if l.Validate() != nil || l.InputPriceMicrosPerMillion == 0 || l.OutputPriceMicrosPerMillion == 0 {
+		return Reservation{}, budgetFailure("RESERVE_CONFIGURATION")
+	}
+	if inputBytes < 0 || inputBytes > l.MaxInputBytes {
+		return Reservation{}, budgetFailure("RESERVE_INPUT_BYTES")
+	}
+	if b.ProviderCalls >= l.MaxProviderCalls {
+		return Reservation{}, budgetFailure("RESERVE_CALLS")
 	}
 	r := Reservation{int64(inputBytes) + 4096, l.MaxOutputTokens}
 	tokens := r.InputTokens + r.OutputTokens
 	cost := ceilingCost(r.InputTokens, l.InputPriceMicrosPerMillion) + ceilingCost(r.OutputTokens, l.OutputPriceMicrosPerMillion)
-	if tokens > l.MaxTotalTokens-b.ReservedTokens || cost > l.MaxCostMicros-b.ReservedCostMicros {
-		return Reservation{}, ErrBudget
+	if tokens > l.MaxTotalTokens-b.ReservedTokens {
+		return Reservation{}, budgetFailure("RESERVE_TOKENS")
+	}
+	if cost > l.MaxCostMicros-b.ReservedCostMicros {
+		return Reservation{}, budgetFailure("RESERVE_COST")
 	}
 	b.ProviderCalls++
 	b.ReservedTokens += tokens
@@ -60,14 +69,14 @@ func (b *Budget) Reserve(l Limits, inputBytes int) (Reservation, error) {
 }
 func (b *Budget) Tool(l Limits) error {
 	if b.ToolCalls >= l.MaxToolCalls {
-		return ErrBudget
+		return budgetFailure("TOOL_CALLS")
 	}
 	b.ToolCalls++
 	return nil
 }
 func (r Reservation) CheckUsage(input, output int64) error {
 	if input < 0 || output < 0 || input > r.InputTokens || output > r.OutputTokens {
-		return ErrBudget
+		return budgetFailure("REPORTED_USAGE")
 	}
 	return nil
 }

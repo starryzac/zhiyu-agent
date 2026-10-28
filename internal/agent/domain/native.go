@@ -17,6 +17,7 @@ import (
 // Missing inventory is represented explicitly; it is never an empty world.
 type NativeContext struct {
 	Timezone         string
+	BankNamespace    string
 	SourceHash       string
 	InventoryHash    string
 	Unavailable      string
@@ -25,6 +26,7 @@ type NativeContext struct {
 	Joint            *planning.JointInput `json:"-"`
 	JointUnavailable string
 	Objects          []ObjectObservation
+	NativeGrants     *NativeGrantCollection `json:"-"`
 }
 type NativeRule struct {
 	Version        policy.TemplateVersion `json:"version"`
@@ -74,7 +76,7 @@ type ObjectObservation struct {
 
 func nativeTool(name string) bool {
 	switch name {
-	case "template_catalog", "template_candidate", "native_rules", "forecast365", "joint_preview", "object_status", "original_objects":
+	case "template_catalog", "template_candidate", "native_rules", "native_grants", "forecast365", "joint_preview", "object_status", "original_objects":
 		return true
 	}
 	return false
@@ -82,7 +84,8 @@ func nativeTool(name string) bool {
 func nativeRegistry() []ToolSchema {
 	empty := json.RawMessage(`{"type":"object","additionalProperties":false,"properties":{},"required":[]}`)
 	return []ToolSchema{
-		{"original_objects", "Read owned retained plan/operation/position/question metadata and exact references; never answer, accept or recover an operation.", append(json.RawMessage(nil), empty...)},
+		{"native_grants", "OFFLINE only: read complete bounded owned native grant originals and lifecycle display. Never establish, restore or execute authority.", append(json.RawMessage(nil), empty...)},
+		{"original_objects", "Read owned retained plan/operation/position/question metadata, known verified-BILL payee identities and exact references; never answer, accept or recover an operation.", append(json.RawMessage(nil), empty...)},
 		{"template_catalog", "Read the twelve exact template names and closed configuration field names. Configuration is compiled by the server, not authority.", append(json.RawMessage(nil), empty...)},
 		{"native_rules", "Read the actual current native rule versions and lifecycle; never confirm, resume or grant.", append(json.RawMessage(nil), empty...)},
 		{"forecast365", "Compute a 365-day forecast from current complete server facts; future income cannot increase current safe cash.", append(json.RawMessage(nil), empty...)},
@@ -101,7 +104,7 @@ type templateArguments struct {
 
 func nativeArguments(call ToolCall) (string, error) {
 	switch call.Name {
-	case "template_catalog", "native_rules", "forecast365", "joint_preview", "original_objects":
+	case "template_catalog", "native_rules", "native_grants", "forecast365", "joint_preview", "original_objects":
 		o, e := exactObject(call.Arguments)
 		if e != nil || len(o) != 0 {
 			return "", ErrTool
@@ -194,7 +197,7 @@ func (s Snapshot) nativeReferences() []Reference {
 	for _, o := range s.Native.Objects {
 		refs = append(refs, makeRef(o.Kind, o.ID, o))
 	}
-	return refs
+	return append(refs, s.nativeGrantReferences()...)
 }
 func (s Snapshot) validateNative() error {
 	n := s.Native
@@ -203,6 +206,12 @@ func (s Snapshot) validateNative() error {
 	}
 	if _, e := policy.TemplateLocation(n.Timezone); e != nil || len(n.Rules) > 100 || len(n.Objects) > 100 {
 		return ErrReference
+	}
+	if err := s.nativeGrantCollection().Validate(s.Scope, s.AsOf); err != nil {
+		return err
+	}
+	if err := s.validateNativeGrantOwnership(); err != nil {
+		return err
 	}
 	scope := policy.TemplateOwnerScope{EnvironmentID: s.Scope.EnvironmentID, UserID: s.Scope.UserID}
 	for _, r := range n.Rules {
@@ -222,8 +231,13 @@ func (s Snapshot) validateNative() error {
 		}
 	}
 	for _, o := range n.Objects {
-		if !strings.HasPrefix(o.Kind, "NATIVE_") || o.Kind == "NATIVE_CONTEXT" || o.Kind == "NATIVE_POLICY" || o.Kind == "NATIVE_VERSION" || !json.Valid(o.Data) || len(o.Data) > 32768 {
+		if !strings.HasPrefix(o.Kind, "NATIVE_") || o.Kind == "NATIVE_CONTEXT" || o.Kind == "NATIVE_POLICY" || o.Kind == "NATIVE_VERSION" || o.Kind == "NATIVE_GRANT" || o.Kind == "NATIVE_GRANTS" || !json.Valid(o.Data) || len(o.Data) > 32768 {
 			return ErrReference
+		}
+		if o.Kind == "NATIVE_PAYEE" {
+			if _, ok := s.knownPayeeObject(o); !ok {
+				return ErrReference
+			}
 		}
 	}
 	if n.Forecast != nil {
@@ -282,6 +296,7 @@ func cloneNative(n *NativeContext) *NativeContext {
 	if json.Unmarshal(raw, &out) != nil {
 		return &NativeContext{Timezone: "INVALID"}
 	}
+	out.NativeGrants = CloneNativeGrantCollection(n.NativeGrants)
 	if n.Joint != nil {
 		raw, _ = json.Marshal(n.Joint)
 		var j planning.JointInput
@@ -344,12 +359,14 @@ func observeNative(s Snapshot, call ToolCall) (Observation, error) {
 	n := s.Native
 	out.References = []Reference{s.contextRef()}
 	switch call.Name {
+	case "native_grants":
+		return observeNativeGrants(s, call, out)
 	case "original_objects":
 		out.Objects = append([]ObjectObservation(nil), n.Objects...)
 		for _, o := range n.Objects {
 			out.References = append(out.References, makeRef(o.Kind, o.ID, o))
 		}
-		out.Summary = "已读取本人近期保留的计划、操作、仓位和原问题元数据。原问题读取只展示原题与回答状态，是否仍可回答须由原问题页面重新核验。"
+		out.Summary = "已读取本人近期保留的计划、操作、仓位、原问题及已核实账单中的收款对象。已知收款对象不代表当前可付款或已经授权；原问题是否仍可回答须由原问题页面重新核验。"
 	case "native_rules":
 		out.NativeRules = append([]NativeRule(nil), n.Rules...)
 		for _, r := range n.Rules {
@@ -385,6 +402,9 @@ func observeNative(s Snapshot, call ToolCall) (Observation, error) {
 			Reference Reference `json:"reference"`
 		}
 		_ = json.Unmarshal(call.Arguments, &a)
+		if a.Reference.Kind == "NATIVE_GRANT" || a.Reference.Kind == "NATIVE_GRANTS" {
+			return observeNativeGrants(s, call, out)
+		}
 		found := false
 		for _, r := range s.References() {
 			if r == a.Reference {
@@ -492,13 +512,38 @@ func observeTemplateCandidate(s Snapshot, call ToolCall, out Observation) (Obser
 	if parseErr != nil || !candidateReferences(s, obj, "") {
 		return Observation{}, ErrReference
 	}
+	if payee, ok := obj["payee_id"].(string); ok {
+		ref, ok := s.knownPayeeReference(payee)
+		if !ok {
+			return Observation{}, ErrReference
+		}
+		out.References = append(out.References, ref)
+	}
 	draft := &TemplateCandidate{Mode: "IF_USER_CONFIRMED", Compiled: compiled, GoalID: a.GoalID, PolicyID: a.PolicyID, Reference: s.contextRef(), State: "INCOMPLETE", Reasons: []string{s.Native.Unavailable}, RequiresUserConfirmation: true}
 	out.NativeCandidate = draft
 	out.Summary = "这是确定性编译的条件候选，尚未确认或生效。请到规则页由本人重新预览完整影响并明确确认；候选不是授权或可执行计划。"
 	if s.Native.Forecast == nil {
 		return out, nil
 	}
-	f := *s.Native.Forecast
+	f, cloneErr := planning.CloneForecastInput(*s.Native.Forecast)
+	if cloneErr != nil {
+		draft.Reasons = []string{"CURRENT_FACTS_INSUFFICIENT_FOR_COUNTERFACTUAL"}
+		return out, nil
+	}
+	var protectedBefore *planning.ForecastInput
+	var protectedIDs []funds.ID
+	if compiled.Name == policy.DatedExpenseTemplate {
+		config, _ := compiled.Decode()
+		protectedIDs = config.(*policy.DatedExpenseConfig).MustNotReducePolicyIDs
+		if len(protectedIDs) != 0 {
+			before, err := planning.CloneForecastInput(f)
+			if err != nil {
+				draft.Reasons = []string{"CURRENT_FACTS_INSUFFICIENT_FOR_COUNTERFACTUAL"}
+				return out, nil
+			}
+			protectedBefore = &before
+		}
+	}
 	// These IDs and verification flags exist only inside this explicit
 	// counterfactual. They are never persisted or returned as USER evidence.
 	pid := draftID(s.Scope, compiled.Hash, "policy")
@@ -537,6 +582,14 @@ func observeTemplateCandidate(s Snapshot, call ToolCall, out Observation) (Obser
 		draft.Reasons = []string{"CURRENT_FACTS_INSUFFICIENT_FOR_COUNTERFACTUAL"}
 		return out, nil
 	}
+	if protectedBefore != nil {
+		refs, err := planning.CompareProtectedPolicyReferencesV1(*protectedBefore, f, pid, protectedIDs)
+		if err != nil {
+			draft.Reasons = []string{"CURRENT_FACTS_INSUFFICIENT_FOR_COUNTERFACTUAL"}
+			return out, nil
+		}
+		f.Facts.ProtectedReferences = refs
+	}
 	f.Facts.CurrentSafe = forecast.CurrentSafe
 	f.Facts.CurrentSafeVerified = true
 	preview, e := policy.PreviewTemplate(proposed, f.Facts, s.AsOf, f.Timezone)
@@ -564,7 +617,13 @@ func draftID(scope Scope, hash, kind string) funds.ID {
 	return id
 }
 func candidateReferences(s Snapshot, value any, key string) bool {
-	return configurationReferences(value, key, s.hasRef)
+	return configurationReferences(value, key, func(kind, id string) bool {
+		if kind == "NATIVE_PAYEE" {
+			_, ok := s.knownPayeeReference(id)
+			return ok
+		}
+		return s.hasRef(kind, id)
+	})
 }
 func configurationReferences(value any, key string, has func(string, string) bool) bool {
 	switch v := value.(type) {
@@ -602,11 +661,23 @@ func configurationReferences(value any, key string, has func(string, string) boo
 // CheckToolReferences restricts MODEL selections to exactly the finite
 // references actually advertised in this turn, in addition to the independent
 // current/scope checks performed by Observe. Offline reads use the full scope.
-func CheckToolReferences(call ToolCall, refs []Reference) error {
+func CheckToolReferences(call ToolCall, refs []Reference, snapshot Snapshot) error {
 	if _, e := argumentID(call); e != nil {
 		return e
 	}
 	has := func(kind, id string) bool {
+		if kind == "NATIVE_PAYEE" {
+			mapped, ok := snapshot.knownPayeeReference(id)
+			if !ok {
+				return false
+			}
+			for _, r := range refs {
+				if r == mapped {
+					return true
+				}
+			}
+			return false
+		}
 		for _, r := range refs {
 			if r.Kind == kind && r.ID == id {
 				return true
@@ -615,6 +686,8 @@ func CheckToolReferences(call ToolCall, refs []Reference) error {
 		return false
 	}
 	switch call.Name {
+	case "native_grants":
+		return ErrTool // MODEL only; OFFLINE Observe does not use this gate.
 	case "goal_status", "policy_candidate":
 		id, e := argumentID(call)
 		if e != nil || !has("GOAL", id) {
@@ -631,6 +704,9 @@ func CheckToolReferences(call ToolCall, refs []Reference) error {
 		}
 		if json.Unmarshal(call.Arguments, &a) != nil {
 			return ErrReference
+		}
+		if a.Reference.Kind == "NATIVE_GRANT" || a.Reference.Kind == "NATIVE_GRANTS" {
+			return ErrTool
 		}
 		for _, r := range refs {
 			if r == a.Reference {

@@ -4,7 +4,6 @@ package domain
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -66,7 +65,13 @@ func ParseMoney(s string) (Money, error) {
 }
 
 // MarshalJSON represents cents, not yuan, as a decimal string.
-func (m Money) MarshalJSON() ([]byte, error) { return json.Marshal(m.String()) }
+func (m Money) MarshalJSON() ([]byte, error) {
+	out := make([]byte, 0, 22)
+	out = append(out, '"')
+	out = strconv.AppendInt(out, m.cents, 10)
+	out = append(out, '"')
+	return out, nil
+}
 
 func (m *Money) UnmarshalJSON(data []byte) error {
 	// Reject numbers, null, signs, fractions, exponents and escaped digits.

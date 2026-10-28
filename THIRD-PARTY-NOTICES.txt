@@ -1,0 +1,20 @@
+Third-party notices and original license texts
+
+The following original materials are retained for the listed dependencies.
+
+pkg:golang/github.com/go-chi/chi/v5@v5.5.0 | LICENSE | licenses/a2d51b7515acfaff2f7a88688650f2fc4fd99561383e72bba2305e3db59a1647.txt
+pkg:golang/github.com/jackc/pgpassfile@v1.0.0 | LICENSE | licenses/adb1663fda031df8f4344aa68f299fd87d80353e31339406742ded21dae65702.txt
+pkg:golang/github.com/jackc/pgservicefile@v0.0.0-20240606120523-5a60cdf6a761 | LICENSE | licenses/fc505773403fe869ed64cc2235cdd13988a427bb7e3a7e7004a3f4b27420f8fc.txt
+pkg:golang/github.com/jackc/pgx/v5@v5.11.0 | LICENSE | licenses/467f95e074fe23079a5623ed652619682692041b8551da27e3c2ddb9659a1507.txt
+pkg:golang/github.com/jackc/puddle/v2@v2.2.3 | LICENSE | licenses/2d50e98a4900b4d6457a38d39c1432fdc156fc2f7b365f2e33ec9344acbb0057.txt
+pkg:golang/github.com/mfridman/interpolate@v0.0.2 | LICENSE.txt | licenses/21408182c12c98d402fa38a8b678560dc63fd6bada5a0017722883e4b79e6620.txt
+pkg:golang/github.com/pressly/goose/v3@v3.29.0 | LICENSE | licenses/f23985556a879c0e68bb4e136ee4b88a550d26fa33db77a65d76b721c93093ef.txt
+pkg:golang/github.com/sethvargo/go-retry@v0.5.0 | LICENSE | licenses/cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30.txt
+pkg:golang/go.uber.org/multierr@v1.11.0 | LICENSE.txt | licenses/dcdabe03bef2382a130640d1c3a4cd5ec42aba1035095c38272fde694eb72405.txt
+pkg:golang/golang.org/x/sync@v0.24.0 | LICENSE | licenses/911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad.txt
+pkg:golang/golang.org/x/text@v0.43.0 | LICENSE | licenses/911f8f5782931320f5b8d1160a76365b83aea6447ee6c04fa6d5591467db9dad.txt
+pkg:npm/@tanstack/query-core@5.90.2 | LICENSE | licenses/a405ee70c632bb938acb7ac5f210e814409b3760ea9d2329d8ed8ffcfd11a0e7.txt
+pkg:npm/@tanstack/react-query@5.90.2 | LICENSE | licenses/a405ee70c632bb938acb7ac5f210e814409b3760ea9d2329d8ed8ffcfd11a0e7.txt
+pkg:npm/react-dom@19.1.1 | LICENSE | licenses/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93.txt
+pkg:npm/react@19.1.1 | LICENSE | licenses/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93.txt
+pkg:npm/scheduler@0.26.0 | LICENSE | licenses/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93.txt

@@ -445,6 +445,7 @@ func jointMatching(lots []funds.IncomeLot, goals []jointGoal, edges map[jointEdg
 // SolveJoint is exact within its declared finite capacity. Exhaustion returns
 // UNKNOWN with no allocations/uses/children; it never returns a greedy fallback.
 func SolveJoint(in JointInput) (JointPlan, error) {
+	solveJointAttempts.Add(1)
 	result := JointPlan{Algorithm: JointAlgorithm, Status: "UNKNOWN", Allocations: []JointAllocation{}, Uses: []JointIncomeUse{}, Children: []JointChild{}, Reasons: []string{}}
 	zone, err := policy.TemplateLocation(in.Timezone)
 	if err != nil || in.Now.IsZero() || !in.Complete || !validHash(in.InventoryHash) || in.Scope.EnvironmentID == (funds.ID{}) || in.Scope.UserID == (funds.ID{}) || in.Dependencies.Validate() != nil || in.Ledger.Validate() != nil || in.Ledger.Snapshot().UserID != in.Scope.UserID || in.Ledger.ValidateCashCoverage(in.Cash, in.Now) != nil {

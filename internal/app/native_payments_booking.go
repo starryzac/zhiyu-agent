@@ -113,6 +113,13 @@ func (s *Service) paymentReject(ctx context.Context, tx pgx.Tx, c Claim, request
 	if e = finalizeStandingPaymentBudget(ctx, tx, p, c.OperationID, funds.Money{}, s.now()); e != nil {
 		return e
 	}
+	cause, e := s.nativeBankRejectionCause(ctx, tx, p, c.OperationID, result)
+	if e != nil {
+		return e
+	}
+	if e = s.recordFundsTerminalDecision(ctx, tx, p, "NATIVE", c.OperationID, "REJECTED", cause); e != nil {
+		return e
+	}
 	if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {
 		return e
 	}

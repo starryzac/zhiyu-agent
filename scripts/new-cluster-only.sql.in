@@ -1,0 +1,22 @@
+\set ON_ERROR_STOP on
+DO $fresh$
+BEGIN
+ IF current_user<>'zygo_install_admin' OR current_database()<>'postgres'
+ OR EXISTS(SELECT 1 FROM pg_database WHERE datname NOT IN('postgres','template0','template1'))
+ OR EXISTS(SELECT 1 FROM pg_roles WHERE rolname NOT LIKE 'pg_%' AND rolname<>'zygo_install_admin')
+ THEN RAISE EXCEPTION 'A genuinely new local cluster is required'; END IF;
+END $fresh$;
+CREATE ROLE zygo_app_owner LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '__OWNER_PASS__';
+CREATE ROLE zygo_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '__APP_PASS__';
+CREATE ROLE zygo_bank LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD '__BANK_PASS__';
+CREATE DATABASE __ENV___app OWNER zygo_app_owner;
+CREATE DATABASE __ENV___bank OWNER zygo_bank;
+REVOKE ALL ON DATABASE __ENV___app FROM PUBLIC;
+GRANT CONNECT ON DATABASE __ENV___app TO zygo_app_owner,zygo_app;
+REVOKE ALL ON DATABASE __ENV___bank FROM PUBLIC;
+GRANT CONNECT ON DATABASE __ENV___bank TO zygo_bank;
+\connect __ENV___app
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO zygo_app;
+\connect __ENV___bank
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;

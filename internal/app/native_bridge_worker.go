@@ -315,6 +315,9 @@ func (s *Service) bridgeCancelSuffix(ctx context.Context, tx pgx.Tx, c Claim, le
 		if _, err = tx.Exec(ctx, `UPDATE native_operations SET status='CANCELLED',processing_health=$4,version=version+1,updated_at=$5 WHERE environment_id=$1 AND user_id=$2 AND id=$3 AND permit_signature IS NULL`, p.EnvironmentID.String(), p.UserID.String(), id.String(), reason, s.now()); err != nil {
 			return err
 		}
+		if err = s.recordNativeCancellation(ctx, tx, p, id, reason); err != nil {
+			return err
+		}
 		if _, err = tx.Exec(ctx, `UPDATE native_jobs SET state='FINISHED',lease_owner=NULL,lease_until=NULL,last_error=$4 WHERE environment_id=$1 AND user_id=$2 AND operation_id=$3`, p.EnvironmentID.String(), p.UserID.String(), id.String(), reason); err != nil {
 			return err
 		}

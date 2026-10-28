@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"zhiyu.local/zhiyu-go/internal/execution/fundswitness"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 	policy "zhiyu.local/zhiyu-go/internal/policy/domain"
 )
@@ -24,6 +25,7 @@ type nativeGrantStateOriginal struct {
 	SessionID     funds.ID                  `json:"session_id"`
 	PrincipalKind string                    `json:"principal_kind"`
 	At            time.Time                 `json:"at"`
+	Admission     *fundswitness.Boundary    `json:"admission,omitempty"`
 }
 
 func nativeAutomationScope(p Principal) policy.TemplateOwnerScope {
@@ -129,7 +131,8 @@ func (s *Service) PreviewNativeStandingGrant(ctx context.Context, p Principal, i
 	products := append([]string(nil), in.ProductIDs...)
 	sort.Slice(accounts, func(i, j int) bool { return accounts[i].String() < accounts[j].String() })
 	sort.Strings(products)
-	terms := policy.NativeStandingTerms{Protocol: policy.NativeStandingProtocol, Scope: nativeAutomationScope(p), Family: in.Family, Policies: refs, AccountIDs: accounts, GoalIDs: goals, ProductIDs: products, PayeeIDs: payees, SingleCap: in.SingleCap, LifetimeCap: in.LifetimeCap, MonthlyCap: in.MonthlyCap, Timezone: in.Timezone, EffectiveFrom: s.now(), ExpiresAt: in.ExpiresAt.UTC()}
+	now := s.now()
+	terms := policy.NativeStandingTerms{Protocol: policy.NativeStandingProtocol, Scope: nativeAutomationScope(p), Family: in.Family, Policies: refs, AccountIDs: accounts, GoalIDs: goals, ProductIDs: products, PayeeIDs: payees, SingleCap: in.SingleCap, LifetimeCap: in.LifetimeCap, MonthlyCap: in.MonthlyCap, Timezone: in.Timezone, EffectiveFrom: now, ExpiresAt: in.ExpiresAt.UTC()}
 	if terms.Validate() != nil {
 		return out, reject("NATIVE_GRANT_INVALID", nil)
 	}
@@ -165,7 +168,7 @@ func (s *Service) PreviewNativeStandingGrant(ctx context.Context, p Principal, i
 			}
 		}
 	}
-	out = NativeStandingGrantPreview{Protocol: NativeAutomationProtocol + "/grant-preview", Scope: nativeAutomationScope(p), SessionID: p.SessionID, Terms: terms, CreatedAt: s.now(), ExpiresAt: s.now().Add(2 * time.Minute)}
+	out = NativeStandingGrantPreview{Protocol: NativeAutomationProtocol + "/grant-preview", Scope: nativeAutomationScope(p), SessionID: p.SessionID, Terms: terms, CreatedAt: now, ExpiresAt: now.Add(2 * time.Minute)}
 	out.ID, err = newID()
 	if err != nil {
 		return out, err
@@ -296,11 +299,17 @@ func (s *Service) ConfirmNativeStandingGrant(ctx context.Context, p Principal, k
 		return zero, err
 	}
 	event := nativeGrantStateOriginal{Protocol: NativeAutomationProtocol + "/grant-state", ID: eventID, Scope: nativeAutomationScope(p), GrantID: id, GrantVersion: 1, Sequence: 1, Action: "CONFIRM", NewState: "ACTIVE", SessionID: p.SessionID, PrincipalKind: "USER", At: now}
+	if event.Admission, err = fundsAuthorityAdmission(ctx, tx, p); err != nil {
+		return zero, err
+	}
 	if err = insertNativeGrantState(ctx, tx, event); err != nil {
 		return zero, err
 	}
 	_, err = tx.Exec(ctx, `INSERT INTO native_grant_states(environment_id,user_id,grant_id,grant_version,state,sequence,event_id,updated_at) VALUES($1,$2,$3,1,'ACTIVE',1,$4,$5)`, p.EnvironmentID.String(), p.UserID.String(), id.String(), eventID.String(), now)
 	if err != nil {
+		return zero, err
+	}
+	if err = s.sealNativeGrantAuthority(ctx, tx, p); err != nil {
 		return zero, err
 	}
 	out, err := loadNativeStandingGrant(ctx, tx, p, id)
@@ -457,11 +466,17 @@ func (s *Service) SetNativeStandingGrantState(ctx context.Context, p Principal, 
 		return zero, err
 	}
 	event := nativeGrantStateOriginal{Protocol: NativeAutomationProtocol + "/grant-state", ID: eventID, Scope: nativeAutomationScope(p), GrantID: id, GrantVersion: view.Grant.Version, Sequence: expected + 1, Action: action, OldState: view.State, NewState: next, SessionID: p.SessionID, PrincipalKind: "USER", At: s.now()}
+	if event.Admission, err = fundsAuthorityAdmission(ctx, tx, p); err != nil {
+		return zero, err
+	}
 	if err = insertNativeGrantState(ctx, tx, event); err != nil {
 		return zero, err
 	}
 	_, err = tx.Exec(ctx, `UPDATE native_grant_states SET state=$4,sequence=$5,event_id=$6,updated_at=$7 WHERE environment_id=$1 AND user_id=$2 AND grant_id=$3`, p.EnvironmentID.String(), p.UserID.String(), id.String(), next, event.Sequence, eventID.String(), event.At)
 	if err != nil {
+		return zero, err
+	}
+	if err = s.sealNativeGrantAuthority(ctx, tx, p); err != nil {
 		return zero, err
 	}
 	// Publish the new source version with its corresponding protection snapshot.

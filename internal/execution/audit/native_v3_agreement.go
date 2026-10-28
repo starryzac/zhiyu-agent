@@ -25,6 +25,7 @@ type nativeControlledBridgeIncomeV3 struct {
 
 func (g *nativeGraphV3) checkLegacyV3() error {
 	legacy := &businessGraph{v2: true, manifest: g.manifest, rows: g.rows, policies: map[string]policy.Policy{}, grants: map[string]policy.Grant{}, confirmations: map[string]policy.ConfirmationSource{}, plans: map[string]planning.Candidate{}, inputs: map[string]frozenBusinessInput{}, requests: map[string]execution.BankRequest{}, results: map[string][]execution.BankResult{}, reservations: g.reservations, ledger: g.ledger}
+	legacy.nativePlanPrefixes = g.snapshot.Revision >= 25
 	// These existing pure validators retain their exact legacy semantics. V3
 	// separately verifies current projections and mixed-family bank agreement.
 	for _, check := range []func() error{legacy.checkPermissions, legacy.checkPlans, legacy.checkOperations, legacy.checkSubmissionPermits} {

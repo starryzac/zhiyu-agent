@@ -217,6 +217,7 @@ type nativeGraphV3 struct {
 	standingPlans           map[string]nativeStandingPlanV3
 	onceApprovals           map[string]any
 	usedNativeConfirmations map[string]bool
+	forecastConsumers       []nativeForecastEconomicConsumerV3
 }
 
 func (g *nativeGraphV3) row(table string, keys ...string) *ledgerRow {
@@ -387,11 +388,19 @@ func ValidateNativeFinancialGraphV3WithTrust(manifest evidence.CaptureManifest, 
 	checks := []struct {
 		name     string
 		validate func() error
-	}{{"income", g.checkIncomeV3}, {"goal-lots", g.checkGoalLotsV3}, {"native-operations", g.checkNativeOperationsV3}, {"legacy", g.checkLegacyV3}, {"independent-bank", g.checkBankAgreementV3}, {"recovery", g.checkRecoveryV3}, {"history-sources", g.checkHistorySourcesV3}, {"inventory-protection", g.checkInventoryAndProtectionV3}, {"templates", g.checkTemplatesV3}, {"native-grants", g.checkNativeGrantsV3}, {"occurrences", g.checkOccurrencesV3}, {"standing-budget", g.checkStandingBudgetV3}, {"candidates", g.checkCandidatesV3}, {"finite-questions", g.checkQuestionsV3}, {"bridge-groups", g.checkBridgeGroupsV3}, {"once-user", g.checkOnceV3}, {"historical-t2", g.checkPermitsV3}, {"resources", g.checkResourcesV3}}
+	}{{"income", g.checkIncomeV3}, {"goal-lots", g.checkGoalLotsV3}, {"native-operations", g.checkNativeOperationsV3}, {"legacy", g.checkLegacyV3}, {"legacy-standing", g.checkLegacyStandingV3}, {"independent-bank", g.checkBankAgreementV3}, {"income-snapshot-evidence", g.checkIncomeSnapshotEvidenceV3}, {"recovery", g.checkRecoveryV3}, {"history-sources", g.checkHistorySourcesV3}, {"inventory-protection", g.checkInventoryAndProtectionV3}, {"templates", g.checkTemplatesV3}, {"bills-obligations", g.billSourcesAndObligations}, {"native-grants", g.checkNativeGrantsV3}, {"occurrences", g.checkOccurrencesV3}, {"automation-event-receipts", g.checkAutomationEventReceiptsV3}, {"standing-budget", g.checkStandingBudgetV3}, {"candidates", g.checkCandidatesV3}, {"finite-questions", g.checkQuestionsV3}, {"bridge-groups", g.checkBridgeGroupsV3}, {"once-user", g.checkOnceV3}, {"orphan-sources", g.checkOrphanSourcesV3}, {"historical-t2", g.checkPermitsV3}, {"resources", g.checkResourcesV3}, {"goal-configuration", g.checkGoalConfigurationV3}, {"native-settlement-events", g.checkNativeSettlementEventsV3}, {"legacy-settlement-events", g.checkLegacySettlementEventsV3}, {"event-evidence-coverage", g.checkEventEvidenceCoverageV3}, {"template-source-witnesses", g.checkTemplateSourceWitnessesV3}, {"forecast-economic-prefixes", g.checkForecastEconomicPrefixesV3}}
 	for _, check := range checks {
 		if err := check.validate(); err != nil {
 			return &evidence.ReferenceError{ID: "native-v3:" + check.name, Cause: err}
 		}
+	}
+	if err := g.checkLegacyEconomicPrefixesV3(); err != nil {
+		return &evidence.ReferenceError{ID: "native-v3:legacy-economic-prefixes", Cause: err}
+	}
+	// Revision 26 has all registered financial closures above. This conclusion
+	// covers only the captured graph; product and release acceptance are separate.
+	if g.snapshot.Revision == 26 {
+		return nil
 	}
 	return &evidence.ReferenceError{ID: "native-v3:remaining-financial-closures", Cause: fmt.Errorf("%w: native independent-bank and financial closures are not yet registered", evidence.ErrIncomplete)}
 }

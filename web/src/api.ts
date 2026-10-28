@@ -8,11 +8,13 @@ export interface Candidate { id: string; policy_id: string; amount: string; stat
 export const states = ['QUEUED', 'SUBMITTING', 'PENDING_SETTLEMENT', 'UNKNOWN', 'RECONCILING', 'SETTLED', 'REJECTED', 'CANCELLED'] as const;
 export type OperationState = typeof states[number];
 export interface Operation { id: string; state: OperationState; amount_cents: string; plan_id: string; bank_key: string; bank_observed_status?: string; processing_health?: string; receipt_id?: string; created_at: string; updated_at: string; version: number }
+export type NativeRuleSummary = { status: 'CURRENT_LOCAL'; current_policy_count: number; active_policy_count: number } | { status: 'MISSING' | 'UNAVAILABLE' };
 export interface Dashboard {
   environment: string; as_of: string;
   accounts: { id: string; name: string; balance_cents: string; goal_owned_cents: string }[];
   goals: { id: string; name: string; account_id: string; target_cents: string; assigned_cents: string }[];
   policies: Policy[]; grants: Grant[]; operations: Operation[];
+  native?: NativeRuleSummary;
   projection: { source_sequence: number; applied_sequence: number; projected_at?: string; status: 'CURRENT' | 'DELAYED' | 'INVALID' | 'MISSING' | 'UNAVAILABLE' };
 }
 export interface Activity { id: string; kind: string; aggregate_id: string; aggregate_version: number; created_at: string }
@@ -45,6 +47,15 @@ function integer(value: unknown): number {
 function list<T>(value: unknown, parse: (item: unknown) => T): T[] {
   if (!Array.isArray(value)) throw new Error('服务端列表字段不符');
   return value.map(parse);
+}
+function nativeRuleSummary(value: unknown): NativeRuleSummary {
+  if (value == null) return { status: 'MISSING' };
+  const item = object(value), status = text(item.status);
+  if (status === 'UNAVAILABLE') return { status };
+  if (status !== 'CURRENT_LOCAL') throw new Error('无法识别模板规则的读取状态');
+  const current = integer(item.current_policy_count), active = integer(item.active_policy_count);
+  if (current < 0 || active < 0 || active > current) throw new Error('模板规则数量不符');
+  return { status, current_policy_count: current, active_policy_count: active };
 }
 function scope(value: unknown): Scope {
   const item = object(value);
@@ -106,7 +117,7 @@ export class Client {
     if (!['CURRENT', 'DELAYED', 'INVALID', 'MISSING', 'UNAVAILABLE'].includes(projectionStatus)) throw new Error('无法识别活动摘要的读取状态');
     return { environment, as_of: text(item.as_of), projection: { source_sequence: integer(projected.source_sequence), applied_sequence: integer(projected.applied_sequence), status: projectionStatus as Dashboard['projection']['status'], projected_at: projected.projected_at == null ? undefined : text(projected.projected_at) }, accounts: list(item.accounts, (raw) => { const row = object(raw); return { id: text(row.id), name: text(row.name), balance_cents: cents(row.balance_cents), goal_owned_cents: cents(row.goal_owned_cents) }; }),
       goals: list(item.goals, (raw) => { const row = object(raw); return { id: text(row.id), name: text(row.name), account_id: text(row.account_id), target_cents: cents(row.target_cents), assigned_cents: cents(row.assigned_cents) }; }),
-      policies: list(item.policies, policy), grants: list(item.grants, grant), operations: list(item.operations, parseOperation) };
+      policies: list(item.policies, policy), grants: list(item.grants, grant), operations: list(item.operations, parseOperation), native: nativeRuleSummary(item.native) };
   }
   async activities(cursor = '', signal?: AbortSignal): Promise<ActivityPage> {
     const item = object(await this.request(`/activities?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, { signal }));

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"zhiyu.local/zhiyu-go/internal/execution/bankv2"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
 )
@@ -70,7 +71,12 @@ func (s *Service) NativeActivityOriginal(ctx context.Context, p Principal, event
 	if err != nil || e != nil || rh != requestHash || eh != effectHash || signature == "" {
 		return out, reject("EVIDENCE_INVALID", nil)
 	}
-	if err = nativeStoredPermit(ctx, tx, p, out.Receipt.OperationID, request, signature); err != nil {
+	if activityTx, ok := tx.(*pgxpool.Tx); ok {
+		err = nativeActivityStoredPermit(ctx, activityTx, p, out.Receipt.OperationID, request, signature)
+	} else {
+		err = nativeStoredPermit(ctx, tx, p, out.Receipt.OperationID, request, signature)
+	}
+	if err != nil {
 		return out, fmt.Errorf("native activity original: retained permit: %w", err)
 	}
 	resultRaw, err := encode(out.Receipt.BankResult)

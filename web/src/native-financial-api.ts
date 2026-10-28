@@ -117,7 +117,69 @@ export function validateActionLocator<P extends ActionPreview>(api: ActionTransp
   if (o.environment !== api.client.session?.environment || o.user_id !== api.client.session?.user_id || command.preview_id !== preview.id || command.reviewed_hash !== preview.reviewed_hash || JSON.stringify(preview) !== JSON.stringify(o.preview) || (api.family === 'assets' && command.cost_reviewed !== (BigInt(preview.fee_cents) + BigInt(preview.loss_cents) > 0n))) throw new Error('原生安排本机原载荷不属于当前完整审阅');
   return { environment: o.environment as string, user_id: o.user_id as string, key: templateID(o.key), command: command as unknown as ActionCommand, preview };
 }
-export function loadActionLocators<P extends ActionPreview>(api: ActionTransport<P>): ActionLocator<P>[] { const raw = localStorage.getItem(actionStorageKey(api)); if (!raw) return []; try { const records = nfList(JSON.parse(raw), (row) => validateActionLocator(api, row), 16); nfUnique(records.map((r) => r.key)); return records; } catch { throw new Error('保存的原生安排请求不完整，已保留原资料并停止新提交'); } }
-export function saveActionLocator<P extends ActionPreview>(api: ActionTransport<P>, original: ActionLocator<P>) { const value = validateActionLocator(api, original), records = loadActionLocators(api); if (records.length >= 16 || records.some((r) => r.key === value.key)) throw new Error('原生安排本机历史容量已满或原键已存在，请保留原件'); const all = [...records, value], raw = JSON.stringify(all); localStorage.setItem(actionStorageKey(api), raw); if (localStorage.getItem(actionStorageKey(api)) !== raw) throw new Error('无法完整保存原生安排，尚未发送'); return all; }
+function parseActionLocators<P extends ActionPreview>(api: ActionTransport<P>, raw: unknown): ActionLocator<P>[] {
+  if (raw == null) return [];
+  if (typeof raw !== 'string') throw new Error('保存的原生安排请求不完整，已保留原资料并停止新提交');
+  try { const records = nfList(JSON.parse(raw), (row) => validateActionLocator(api, row), 16); nfUnique(records.map((r) => r.key)); return records; }
+  catch { throw new Error('保存的原生安排请求不完整，已保留原资料并停止新提交'); }
+}
+function mergeActionLocators<P extends ActionPreview>(left: ActionLocator<P>[], right: ActionLocator<P>[]): ActionLocator<P>[] {
+  const result = [...left];
+  for (const value of right) {
+    const old = result.find((r) => r.key === value.key);
+    if (old && JSON.stringify(old) !== JSON.stringify(value)) throw new Error('原生安排同一原键存在不同完整资料，请保留全部原件并先核对');
+    if (!old) result.push(value);
+  }
+  if (result.length > 16) throw new Error('原生安排本机历史容量已满，请保留全部原件');
+  return result;
+}
+function actionDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('zhiyu-go-native-action-originals-v1', 1);
+    let blocked = false;
+    request.onupgradeneeded = () => { request.result.createObjectStore('originals'); };
+    request.onblocked = () => { blocked = true; reject(new Error('本机原生安排资料正被其他页面占用，请保留原资料并关闭旧页面后核对')); };
+    request.onsuccess = () => { const database = request.result; database.onversionchange = () => database.close(); if (blocked) database.close(); else resolve(database); };
+    request.onerror = () => reject(new Error('无法读取本机原生安排完整资料，请保留原件'));
+  });
+}
+async function actionRecords<P extends ActionPreview>(api: ActionTransport<P>, append?: ActionLocator<P>): Promise<ActionLocator<P>[]> {
+  const key = actionStorageKey(api), database = await actionDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction('originals', append ? 'readwrite' : 'readonly'), store = transaction.objectStore('originals'), request = store.get(key);
+      let result: ActionLocator<P>[] = [], failure: unknown;
+      request.onsuccess = () => {
+        try {
+          // The old localStorage bytes are read-only. Complete new originals
+          // live in IndexedDB; neither terminal nor failed records are evicted.
+          const legacyRaw = localStorage.getItem(key), legacy = parseActionLocators(api, legacyRaw);
+          let stored: ActionLocator<P>[] = [];
+          if (request.result !== undefined) {
+            try {
+              if (typeof request.result !== 'string') throw new Error();
+              const snapshot = nfObject(JSON.parse(request.result)); nfClosed(snapshot, ['protocol', 'legacy_raw', 'records']);
+              if (snapshot.protocol !== 'zhiyu-native-action-originals-v1' || snapshot.legacy_raw !== legacyRaw || !Array.isArray(snapshot.records)) throw new Error();
+              stored = parseActionLocators(api, JSON.stringify(snapshot.records));
+            } catch { throw new Error('本机原生安排请求不完整或旧版恢复资料变化，已保留全部原件并停止新提交'); }
+          }
+          result = mergeActionLocators(legacy, stored);
+          if (append) {
+            if (result.length >= 16 || result.some((r) => r.key === append.key)) throw new Error('原生安排本机历史容量已满或原键已存在，请保留原件');
+            store.put(JSON.stringify({ protocol: 'zhiyu-native-action-originals-v1', legacy_raw: legacyRaw, records: [...stored, append] }), key); result.push(append);
+          }
+        } catch (cause) { failure = cause; transaction.abort(); }
+      };
+      transaction.oncomplete = () => resolve(result);
+      transaction.onerror = transaction.onabort = () => reject(failure ?? new Error('原生安排完整资料尚未可靠保存，未发送本笔请求；请保留原件'));
+    });
+  } finally { database.close(); }
+}
+export async function loadActionLocators<P extends ActionPreview>(api: ActionTransport<P>): Promise<ActionLocator<P>[]> { return actionRecords(api); }
+export async function saveActionLocator<P extends ActionPreview>(api: ActionTransport<P>, original: ActionLocator<P>): Promise<ActionLocator<P>[]> {
+  const value = validateActionLocator(api, original), committed = await actionRecords(api, value), verified = await loadActionLocators(api);
+  if (!committed.every((r) => verified.some((v) => v.key === r.key && JSON.stringify(v) === JSON.stringify(r)))) throw new Error('无法完整回读原生安排，未发送本笔请求；请保留原件');
+  return verified;
+}
 export const actionKindLabel: Record<NativeActionKind, string> = { PAY_RECURRING: '负债支付', PURCHASE_ASSET: '资产购买', REDEEM_ASSET: '资产赎回', MATURE_ASSET: '到期本金回收' };
 export function productLabel(terms: ProductTerms): string { return terms.asset_class === 'FIXED_DEPOSIT' ? `定期存款 ${terms.term_days} 天` : terms.asset_class === 'CASH_MGMT_T0' ? '现金管理 T+0' : '现金管理 T+1'; }

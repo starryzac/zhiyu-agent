@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5178 --strictPort",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 5178 --strictPort"
+    "preview": "vite preview --host 127.0.0.1 --port 5178 --strictPort",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "5.90.2",
@@ -20,9 +21,5 @@
     "@vitejs/plugin-react": "5.0.4",
     "typescript": "5.9.3",
     "vite": "7.3.6"
-  },
-  "engines": {
-    "node": ">=22.12.0"
-  },
-  "packageManager": "pnpm@11.25.0"
+  }
 }

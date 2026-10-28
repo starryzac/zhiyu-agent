@@ -115,11 +115,18 @@ func (s *Service) projectObservation(ctx context.Context, c Claim, request execu
 		if err = s.Store.SaveLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, "UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2", p.EnvironmentID.String(), p.UserID.String())
+		_, err = tx.Exec(ctx, `UPDATE operations SET status='REJECTED',bank_observed_status='REJECTED',processing_health='HEALTHY',updated_at=$4,version=version+1 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), s.now())
 		if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `UPDATE operations SET status='REJECTED',bank_observed_status='REJECTED',processing_health='HEALTHY',updated_at=$4,version=version+1 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), s.now())
+		cause, err := s.legacyBankRejectionCause(ctx, tx, p, c.OperationID, result)
+		if err != nil {
+			return err
+		}
+		if err = s.recordFundsTerminalDecision(ctx, tx, p, "LEGACY", c.OperationID, "REJECTED", cause); err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, "UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2", p.EnvironmentID.String(), p.UserID.String())
 		if err != nil {
 			return err
 		}
@@ -256,11 +263,14 @@ func (s *Service) bookSettlement(ctx context.Context, c Claim, request execution
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, "UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2", p.EnvironmentID.String(), p.UserID.String())
+	_, err = tx.Exec(ctx, `UPDATE operations SET status='SETTLED',receipt_id=$4,processing_health='HEALTHY',version=version+1,updated_at=$5 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), receiptID.String(), now)
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `UPDATE operations SET status='SETTLED',receipt_id=$4,processing_health='HEALTHY',version=version+1,updated_at=$5 WHERE environment_id=$1 AND user_id=$2 AND id=$3`, p.EnvironmentID.String(), p.UserID.String(), c.OperationID.String(), receiptID.String(), now)
+	// SETTLED synchronously projects legacy ownership into the native goal
+	// balances and source lots. Seal the same funds-version boundary only
+	// after that projection and the original receipt are both present.
+	_, err = tx.Exec(ctx, "UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2", p.EnvironmentID.String(), p.UserID.String())
 	if err != nil {
 		return err
 	}

@@ -28,12 +28,31 @@ func ParseID(s string) (ID, error) {
 	return id, nil
 }
 
-func (id ID) String() string {
-	s := hex.EncodeToString(id[:])
-	return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:]
+func encodeCanonicalID(dst *[36]byte, id ID) {
+	hex.Encode(dst[0:8], id[0:4])
+	dst[8] = '-'
+	hex.Encode(dst[9:13], id[4:6])
+	dst[13] = '-'
+	hex.Encode(dst[14:18], id[6:8])
+	dst[18] = '-'
+	hex.Encode(dst[19:23], id[8:10])
+	dst[23] = '-'
+	hex.Encode(dst[24:36], id[10:16])
 }
 
-func (id ID) MarshalJSON() ([]byte, error) { return json.Marshal(id.String()) }
+func (id ID) String() string {
+	var out [36]byte
+	encodeCanonicalID(&out, id)
+	return string(out[:])
+}
+
+func (id ID) MarshalJSON() ([]byte, error) {
+	out := make([]byte, 38)
+	out[0] = '"'
+	encodeCanonicalID((*[36]byte)(out[1:37]), id)
+	out[37] = '"'
+	return out, nil
+}
 func (id *ID) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {

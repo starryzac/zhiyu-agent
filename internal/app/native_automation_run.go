@@ -56,11 +56,15 @@ func (s *Service) retryNativeOccurrence(ctx context.Context, c NativeOccurrenceC
 }
 
 func (s *Service) RunNativeStanding(ctx context.Context, owner string) error {
+	var databaseFailures uint
 	for {
 		if ctx.Err() != nil {
 			return nil
 		}
 		worked, err := s.NativeStandingStep(ctx, owner, 30*time.Second)
+		if retryBackgroundDatabase(ctx, err, &databaseFailures) {
+			continue
+		}
 		if err != nil && Code(err) == "INTERNAL_ERROR" && !errors.Is(err, ErrNativeOccurrenceClaimLost) {
 			return err
 		}

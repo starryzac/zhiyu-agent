@@ -140,6 +140,13 @@ func (s *Service) paymentCancelUnsigned(ctx context.Context, tx pgx.Tx, c Claim,
 	if e = finalizeStandingPaymentBudget(ctx, tx, p, c.OperationID, funds.Money{}, s.now()); e != nil {
 		return e
 	}
+	cause, e := s.nativeTerminalCancellationCause(ctx, tx, p, c.OperationID, reason)
+	if e != nil {
+		return e
+	}
+	if e = s.recordFundsTerminalDecision(ctx, tx, p, "NATIVE", c.OperationID, "CANCELLED", cause); e != nil {
+		return e
+	}
 	if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {
 		return e
 	}

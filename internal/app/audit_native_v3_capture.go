@@ -15,6 +15,25 @@ import (
 
 type nativeAuditBasisV3 struct{ FV, SV, WG, CV int64 }
 
+// The app role cannot read Goose's owner-only version table. Select the
+// registered schema features, then let the complete catalog inventory expose
+// every missing table. Never silently downgrade a partial witness schema.
+func nativeAuditSchemaCatalogRevisionV3(recovery, fundsWitness, sourceWitness, terminalDecision bool) (int, error) {
+	if terminalDecision {
+		return 26, nil
+	}
+	if fundsWitness != sourceWitness {
+		return 0, reject("AUDIT_SCHEMA_INCOMPLETE", nil)
+	}
+	if fundsWitness {
+		return 25, nil
+	}
+	if recovery {
+		return 23, nil
+	}
+	return executionaudit.NativeCatalogRevisionV3, nil
+}
+
 func nativeAuditCaptureIsV3(capture evidence.CapturedBundle) bool {
 	if len(capture.Manifest.Roots) != 1 {
 		return false
@@ -66,13 +85,14 @@ func (s *Service) captureNativeAuditV3(ctx context.Context, p Principal, runID f
 		bank.Problems = append(bank.Problems, "APPLICATION_BASIS_CHANGED_DURING_INDEPENDENT_READ")
 	}
 	scope := evidence.Scope{EnvironmentID: env.ID.String(), Namespace: env.Namespace, UserID: p.UserID.String(), Epoch: fmt.Sprintf("writer:%d", env.WriterGeneration)}
-	revision := executionaudit.NativeCatalogRevisionV3
-	var recoverySchema bool
-	if err = tx.QueryRow(ctx, `SELECT to_regclass('public.writer_controls') IS NOT NULL OR to_regclass('public.writer_control_events') IS NOT NULL OR to_regclass('public.recovery_runs') IS NOT NULL OR to_regclass('public.recovery_bank_scans') IS NOT NULL OR to_regclass('public.recovery_bank_observations') IS NOT NULL`).Scan(&recoverySchema); err != nil {
+	var recoverySchema, fundsWitness, sourceWitness, terminalDecision bool
+	if err = tx.QueryRow(ctx, `SELECT to_regclass('public.writer_controls') IS NOT NULL OR to_regclass('public.writer_control_events') IS NOT NULL OR to_regclass('public.recovery_runs') IS NOT NULL OR to_regclass('public.recovery_bank_scans') IS NOT NULL OR to_regclass('public.recovery_bank_observations') IS NOT NULL,
+ to_regclass('public.funds_commit_witnesses') IS NOT NULL,to_regclass('public.template_source_witnesses') IS NOT NULL,to_regclass('public.funds_terminal_decisions') IS NOT NULL`).Scan(&recoverySchema, &fundsWitness, &sourceWitness, &terminalDecision); err != nil {
 		return empty, err
 	}
-	if recoverySchema {
-		revision = executionaudit.NativeCurrentCatalogRevisionV3
+	revision, err := nativeAuditSchemaCatalogRevisionV3(recoverySchema, fundsWitness, sourceWitness, terminalDecision)
+	if err != nil {
+		return empty, err
 	}
 	catalog := executionaudit.NativeAuditTablesV3Revision(revision)
 	source := evidence.SourceMetadata{CapturedAt: s.now(), Watermarks: map[string]int64{"funds_version": after.FV, "source_version": after.SV, "writer_generation": after.WG, "control_version": after.CV}, SourceManifestSHA256: s.AuditTrust.SourceManifestSHA256, ConfigSHA256: s.AuditTrust.ConfigSHA256}

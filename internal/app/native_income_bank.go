@@ -45,6 +45,7 @@ type nativeIncomeLocalBasis struct {
 }
 
 func (s *Service) captureNativeIncome(ctx context.Context, p Principal, sources NativeIncomeSources) (nativeIncomeCapture, []byte, error) {
+	captureNativeIncomeAttempts.Add(1)
 	out := nativeIncomeCapture{Protocol: nativeIncomeProtocol + "/bank-capture", Legacy: []execution.BankResult{}, Native: []bankv2.Result{}}
 	if sources.Credit == nil || sources.Legacy == nil || sources.Native == nil {
 		return out, nil, reject("BANK_UNAVAILABLE", nil)

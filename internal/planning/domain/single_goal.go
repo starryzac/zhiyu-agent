@@ -161,6 +161,7 @@ func normalizedProtection(p Protection) Protection {
 // initial supported operation assigns cash already in the same account. It
 // rejects cross-account effects rather than inventing an implicit transfer.
 func PlanSingleGoal(in Input) (Candidate, error) {
+	planSingleGoalAttempts.Add(1)
 	start, err := in.Policy.EffectiveFrom(in.Now)
 	if err != nil {
 		return Candidate{}, err

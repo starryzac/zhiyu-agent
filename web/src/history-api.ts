@@ -12,7 +12,11 @@ export interface HistoryMapping { protocol: 'zhiyu-passive-history-mapping-v1'; 
 export interface HistoryPreview { mapping: HistoryMapping; reviewed_hash: string; source_status: HistoryStatus; assurance: string; passive_only: true; bank_authority: false; activated: false }
 export interface HistoryImportRequest { archive_id: string; mapping: HistoryMapping; reviewed_hash: string; passive_only_reviewed: true }
 export interface HistoryImport { id: string; archive_id: string; source_status: HistoryStatus; state: 'READY' | 'RUNNING' | 'COMPLETED'; paused: boolean; cursor: number; total: number; generation: number; updated_at: string; original: Record<string, unknown> }
-export interface PendingHistory { protocol: 'zhiyu-browser-passive-history-v1'; environment: string; user_id: string; key: string; kind: 'CAPTURE' | 'UPLOAD' | 'IMPORT'; command: HistoryImportRequest | null; upload_hash?: string; upload_size?: number; result_id?: string }
+export interface HistoryUploadRejection { code: 'INVALID_HISTORY_ARCHIVE'; http_status: 409; original_http_status: 404; observed_at: string }
+export interface PendingHistory { protocol: 'zhiyu-browser-passive-history-v1'; environment: string; user_id: string; key: string; kind: 'CAPTURE' | 'UPLOAD' | 'IMPORT'; command: HistoryImportRequest | null; upload_hash?: string; upload_size?: number; result_id?: string; rejection?: HistoryUploadRejection }
+export class HistoryUploadRejected extends Error {
+  constructor(readonly key: string, readonly upload_hash: string, readonly upload_size: number, readonly observed_at = new Date().toISOString()) { super('这份上传档案未通过原件结构校验，服务端已拒绝保存；原请求和原文件继续保留。'); }
+}
 
 function inert(raw: Record<string, unknown>) { if (raw.bank_authority !== false || raw.activated !== false) throw new Error('历史档案出现未审阅的激活或资金权限，已停止'); }
 function status(raw: unknown): HistoryStatus { const value = nfText(raw); if (!(value in historyStatusText)) throw new Error('历史核验状态不受支持'); return value as HistoryStatus; }
@@ -49,19 +53,37 @@ export function parseHistoryImport(raw: unknown, client: Client): HistoryImport 
   return { id: templateID(o.id), archive_id: templateID(o.archive_id), source_status: status(o.source_status), state: r.state as HistoryImport['state'], paused: bool(r.paused), cursor, total: mapping.entries.length, generation: nfInt(r.generation), updated_at: nfTime(r.updated_at), original: r };
 }
 export function historyPendingKey(client: Client) { if (!client.session) throw new Error('请先登录'); return `zhiyu-go:passive-history:v1:${client.session.environment}:${client.session.user_id}`; }
-export function loadHistoryPending(client: Client): PendingHistory | null {
-  const raw = localStorage.getItem(historyPendingKey(client)); if (!raw) return null;
+function parseHistoryPending(client: Client, raw: unknown): PendingHistory {
   try {
-    const p = nfObject(JSON.parse(raw)); nfClosed(p, ['protocol', 'environment', 'user_id', 'key', 'kind', 'command', 'upload_hash', 'upload_size', 'result_id']);
+    const p = nfObject(raw); nfClosed(p, ['protocol', 'environment', 'user_id', 'key', 'kind', 'command', 'upload_hash', 'upload_size', 'result_id', 'rejection']);
     if (p.protocol !== 'zhiyu-browser-passive-history-v1' || p.environment !== client.session?.environment || p.user_id !== client.session?.user_id || !['CAPTURE', 'UPLOAD', 'IMPORT'].includes(String(p.kind))) throw new Error('scope');
     templateID(p.key); if (p.result_id != null) templateID(p.result_id);
     if (p.kind === 'IMPORT') { const command = nfObject(p.command); nfClosed(command, ['archive_id', 'mapping', 'reviewed_hash', 'passive_only_reviewed']); templateID(command.archive_id); nfHash(command.reviewed_hash); parseHistoryMapping(command.mapping, client); if (command.passive_only_reviewed !== true) throw new Error('review'); }
     else if (p.command !== null) throw new Error('command');
     if (p.kind === 'UPLOAD') { nfHash(p.upload_hash); nfInt(p.upload_size, 1, 96 << 20); }
+    if (p.rejection != null) { const r = nfObject(p.rejection); nfClosed(r, ['code', 'http_status', 'original_http_status', 'observed_at']); if (p.kind !== 'UPLOAD' || p.result_id != null || r.code !== 'INVALID_HISTORY_ARCHIVE' || r.http_status !== 409 || r.original_http_status !== 404) throw new Error('rejection'); nfTime(r.observed_at); }
     return p as unknown as PendingHistory;
   } catch { throw new Error('本机历史档案原请求不完整，已保留资料并停止新提交'); }
 }
-export function saveHistoryPending(client: Client, pending: PendingHistory) { const key = historyPendingKey(client), raw = JSON.stringify(pending); localStorage.setItem(key, raw); if (localStorage.getItem(key) !== raw) throw new Error('无法完整保存历史原请求，尚未提交'); return loadHistoryPending(client)!; }
+export function loadHistoryPending(client: Client): PendingHistory | null { const raw = localStorage.getItem(historyPendingKey(client)); if (!raw) return null; try { return parseHistoryPending(client, JSON.parse(raw)); } catch { throw new Error('本机历史档案原请求不完整，已保留资料并停止新提交'); } }
+export function loadHistoryRejections(client: Client): PendingHistory[] {
+  const prefix = historyPendingKey(client) + ':rejected:', values: PendingHistory[] = [];
+  for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (!key?.startsWith(prefix)) continue; const value = parseHistoryPending(client, JSON.parse(localStorage.getItem(key)!)); if (!value.rejection || key !== prefix + value.key) throw new Error('已保留的历史拒绝记录不完整'); values.push(value); }
+  return values;
+}
+export function retainHistoryRejection(client: Client, pending: PendingHistory): void {
+  const current = loadHistoryPending(client), value = parseHistoryPending(client, pending), raw = JSON.stringify(value);
+  if (!value.rejection || JSON.stringify(current) !== raw) throw new Error('不能替换本机历史拒绝的原请求');
+  const key = historyPendingKey(client) + ':rejected:' + value.key, previous = localStorage.getItem(key);
+  if (previous != null && previous !== raw) throw new Error('已保留的历史拒绝记录发生变化');
+  localStorage.setItem(key, raw); if (localStorage.getItem(key) !== raw) throw new Error('历史拒绝记录尚未完整保留，不能开始新请求');
+}
+export function saveHistoryPending(client: Client, pending: PendingHistory) {
+  const key = historyPendingKey(client), value = parseHistoryPending(client, pending), raw = JSON.stringify(value), previous = loadHistoryPending(client);
+  if (previous && previous.key !== value.key && !previous.result_id && (!previous.rejection || localStorage.getItem(key + ':rejected:' + previous.key) !== JSON.stringify(previous))) throw new Error('原历史请求尚未核对或保留，不能替换原键');
+  if (previous?.key === value.key) { const request = (p: PendingHistory) => { const original = { ...p }; delete original.result_id; delete original.rejection; return original; }; if (JSON.stringify(request(previous)) !== JSON.stringify(request(value)) || (previous.rejection && JSON.stringify(previous.rejection) !== JSON.stringify(value.rejection))) throw new Error('不能更换历史原键的完整请求或已观察拒绝'); }
+  localStorage.setItem(key, raw); if (localStorage.getItem(key) !== raw) throw new Error('无法完整保存历史原请求，尚未提交'); return loadHistoryPending(client)!;
+}
 export class HistoryClient {
   constructor(readonly client: Client) {}
   async archives() { const r = nfObject(await this.client.request('/history-archives')); return { items: nfList(r.items, summary, 20), has_more: bool(r.has_more) }; }
@@ -75,7 +97,20 @@ export class HistoryClient {
     return parsed;
   }
   async submit(p: PendingHistory, blob?: Blob) {
-    if (p.kind === 'UPLOAD') { if (!blob || blob.size !== p.upload_size || await historyBlobHash(blob) !== p.upload_hash) throw new Error('本机上传原件不完整'); await this.wire('/history-archives', { method: 'POST', headers: { 'Idempotency-Key': p.key, 'Content-Type': 'application/vnd.zhiyu.history+json' }, body: blob }); }
+    if (p.rejection) throw new Error('这份原上传已经明确拒绝，不能自动重试或换键重送');
+    if (p.kind === 'UPLOAD') {
+      if (!blob || blob.size !== p.upload_size || await historyBlobHash(blob) !== p.upload_hash) throw new Error('本机上传原件不完整');
+      try { await this.wire('/history-archives', { method: 'POST', headers: { 'Idempotency-Key': p.key, 'Content-Type': 'application/vnd.zhiyu.history+json' }, body: blob }); }
+      catch (cause) {
+        // This exact upload error is returned before any archive transaction.
+        // A bare 409, conflict, response loss or later GET error proves nothing.
+        if (cause instanceof ApiError && cause.status === 409 && cause.code === 'INVALID_HISTORY_ARCHIVE') {
+          try { return await this.original(p); }
+          catch (lookup) { if (lookup instanceof ApiError && lookup.status === 404 && lookup.code === 'NOT_FOUND') throw new HistoryUploadRejected(p.key, p.upload_hash!, p.upload_size!); }
+        }
+        throw cause;
+      }
+    }
     else await this.client.request(p.kind === 'CAPTURE' ? '/history-captures' : '/history-imports', { method: 'POST', headers: { 'Idempotency-Key': p.key }, body: JSON.stringify(p.kind === 'CAPTURE' ? {} : p.command), ...(p.kind === 'CAPTURE' ? { signal: AbortSignal.timeout(25000) } : {}) });
     return this.original(p);
   }

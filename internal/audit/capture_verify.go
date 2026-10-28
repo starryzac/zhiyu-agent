@@ -10,6 +10,7 @@ import (
 // VerifyCaptured checks one exact, bounded captured set. A collector assertion
 // of DB coverage is not silently promoted to independently anchored integrity.
 func VerifyCaptured(bundle CapturedBundle, registry *Registry, options CaptureOptions) CaptureVerification {
+	verifyCapturedAttempts.Add(1)
 	m := bundle.Manifest
 	result := CaptureVerification{Status: Valid, Scope: m.Scope, Assurance: "INTERNAL_CONSISTENCY", AnchorStatus: "NOT_PROVIDED", CapturedAt: m.Source.CapturedAt.UTC(), Watermarks: map[string]int64{}, SourceManifestSHA256: m.Source.SourceManifestSHA256, ConfigSHA256: m.Source.ConfigSHA256, RootIDs: []string{}, CheckedIDs: []string{}, Versions: []CapturedVersion{}}
 	for key, value := range m.Source.Watermarks {

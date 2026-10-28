@@ -44,14 +44,19 @@ var (
 	ErrTemplateInactive = errors.New("TEMPLATE_NOT_CURRENT_ACTIVE")
 )
 
+// Fixed lowercase UUID text has the same order as its 16 underlying bytes.
+func templateIDLess(a, b funds.ID) bool {
+	return bytes.Compare(a[:], b[:]) < 0
+}
+
 func normalizedTemplateFacts(f TemplateFacts) TemplateFacts {
 	f.Accounts = append([]TemplateAccountFact(nil), f.Accounts...)
-	sort.Slice(f.Accounts, func(i, j int) bool { return f.Accounts[i].ID.String() < f.Accounts[j].ID.String() })
+	sort.Slice(f.Accounts, func(i, j int) bool { return templateIDLess(f.Accounts[i].ID, f.Accounts[j].ID) })
 	f.Income = append([]TemplateIncomeFact(nil), f.Income...)
 	for i := range f.Income {
 		f.Income[i].OccurredAt = f.Income[i].OccurredAt.UTC()
 	}
-	sort.Slice(f.Income, func(i, j int) bool { return f.Income[i].ID.String() < f.Income[j].ID.String() })
+	sort.Slice(f.Income, func(i, j int) bool { return templateIDLess(f.Income[i].ID, f.Income[j].ID) })
 	f.Goals = append([]TemplateGoalFact(nil), f.Goals...)
 	for i := range f.Goals {
 		if f.Goals[i].GoalVersion != nil {
@@ -60,34 +65,34 @@ func normalizedTemplateFacts(f TemplateFacts) TemplateFacts {
 			f.Goals[i].GoalVersion = &version
 		}
 	}
-	sort.Slice(f.Goals, func(i, j int) bool { return f.Goals[i].ID.String() < f.Goals[j].ID.String() })
+	sort.Slice(f.Goals, func(i, j int) bool { return templateIDLess(f.Goals[i].ID, f.Goals[j].ID) })
 	f.Bills = append([]TemplateBillFact(nil), f.Bills...)
-	sort.Slice(f.Bills, func(i, j int) bool { return f.Bills[i].ID.String() < f.Bills[j].ID.String() })
+	sort.Slice(f.Bills, func(i, j int) bool { return templateIDLess(f.Bills[i].ID, f.Bills[j].ID) })
 	f.Settlements = append([]TemplateSettlementFact(nil), f.Settlements...)
 	sort.Slice(f.Settlements, func(i, j int) bool {
 		return f.Settlements[i].PolicyID.String()+f.Settlements[i].Period < f.Settlements[j].PolicyID.String()+f.Settlements[j].Period
 	})
 	f.HistoryAccounts = append([]funds.ID(nil), f.HistoryAccounts...)
-	sort.Slice(f.HistoryAccounts, func(i, j int) bool { return f.HistoryAccounts[i].String() < f.HistoryAccounts[j].String() })
+	sort.Slice(f.HistoryAccounts, func(i, j int) bool { return templateIDLess(f.HistoryAccounts[i], f.HistoryAccounts[j]) })
 	f.History = append([]TemplateHistoryTransaction(nil), f.History...)
-	sort.Slice(f.History, func(i, j int) bool { return f.History[i].ID.String() < f.History[j].ID.String() })
+	sort.Slice(f.History, func(i, j int) bool { return templateIDLess(f.History[i].ID, f.History[j].ID) })
 	f.Coverage = append([]TemplateHistoryCoverage(nil), f.Coverage...)
 	for i := range f.Coverage {
 		f.Coverage[i].Dates = append([]string(nil), f.Coverage[i].Dates...)
 		sort.Strings(f.Coverage[i].Dates)
 	}
-	sort.Slice(f.Coverage, func(i, j int) bool { return f.Coverage[i].AccountID.String() < f.Coverage[j].AccountID.String() })
+	sort.Slice(f.Coverage, func(i, j int) bool { return templateIDLess(f.Coverage[i].AccountID, f.Coverage[j].AccountID) })
 	f.Products = append([]TemplateAssetProductFact(nil), f.Products...)
-	sort.Slice(f.Products, func(i, j int) bool { return f.Products[i].ID.String() < f.Products[j].ID.String() })
+	sort.Slice(f.Products, func(i, j int) bool { return templateIDLess(f.Products[i].ID, f.Products[j].ID) })
 	f.Positions = append([]TemplatePositionFact(nil), f.Positions...)
-	sort.Slice(f.Positions, func(i, j int) bool { return f.Positions[i].ID.String() < f.Positions[j].ID.String() })
+	sort.Slice(f.Positions, func(i, j int) bool { return templateIDLess(f.Positions[i].ID, f.Positions[j].ID) })
 	f.EmergencyDeficits = append([]TemplateEmergencyDeficit(nil), f.EmergencyDeficits...)
 	sort.Slice(f.EmergencyDeficits, func(i, j int) bool { return f.EmergencyDeficits[i].Condition < f.EmergencyDeficits[j].Condition })
 	f.SeasonalWindows = append([]TemplateSeasonalWindow(nil), f.SeasonalWindows...)
 	sort.Slice(f.SeasonalWindows, func(i, j int) bool { return f.SeasonalWindows[i].Start < f.SeasonalWindows[j].Start })
 	f.ProtectedReferences = append([]TemplatePolicyReference(nil), f.ProtectedReferences...)
 	sort.Slice(f.ProtectedReferences, func(i, j int) bool {
-		return f.ProtectedReferences[i].PolicyID.String() < f.ProtectedReferences[j].PolicyID.String()
+		return templateIDLess(f.ProtectedReferences[i].PolicyID, f.ProtectedReferences[j].PolicyID)
 	})
 	if f.Intervention != nil {
 		event := *f.Intervention
@@ -1350,31 +1355,40 @@ func EstimateLivingReserve(config LivingReserveConfig, facts TemplateFacts, refe
 // float JSON/hash semantics remain frozen and are not silently reinterpreted.
 type Quantile string
 
+var quantileSyntax = regexp.MustCompile(`^(0(\.[0-9]{1,18})?|1(\.0{1,18})?)$`)
+
+func parseQuantileString(value string) (Quantile, error) {
+	if !quantileSyntax.MatchString(value) {
+		return "", ErrTemplate
+	}
+	ratio, ok := new(big.Rat).SetString(value)
+	if !ok || ratio.Sign() <= 0 || ratio.Cmp(big.NewRat(1, 1)) > 0 {
+		return "", ErrTemplate
+	}
+	if strings.Contains(value, ".") {
+		value = strings.TrimRight(strings.TrimRight(value, "0"), ".")
+	}
+	return Quantile(value), nil
+}
+
 func (q *Quantile) UnmarshalJSON(raw []byte) error {
 	var value string
 	if json.Unmarshal(raw, &value) != nil {
 		return ErrTemplate
 	}
-	if !regexp.MustCompile(`^(0(\.[0-9]{1,18})?|1(\.0{1,18})?)$`).MatchString(value) {
-		return ErrTemplate
+	checked, err := parseQuantileString(value)
+	if err != nil {
+		return err
 	}
-	ratio, ok := new(big.Rat).SetString(value)
-	if !ok || ratio.Sign() <= 0 || ratio.Cmp(big.NewRat(1, 1)) > 0 {
-		return ErrTemplate
-	}
-	if strings.Contains(value, ".") {
-		value = strings.TrimRight(strings.TrimRight(value, "0"), ".")
-	}
-	*q = Quantile(value)
+	*q = checked
 	return nil
 }
 func (q Quantile) Rank(count int) (int, error) {
 	if count < 1 {
 		return 0, ErrTemplateFacts
 	}
-	var checked Quantile
-	raw, _ := json.Marshal(string(q))
-	if checked.UnmarshalJSON(raw) != nil {
+	checked, err := parseQuantileString(string(q))
+	if err != nil {
 		return 0, ErrTemplate
 	}
 	ratio, _ := new(big.Rat).SetString(string(checked))

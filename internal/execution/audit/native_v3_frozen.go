@@ -142,7 +142,9 @@ func (g *nativeGraphV3) checkFrozenLedgerProjectionV3(n nativeFrozenLedgerV3, at
 		case bankv2.Allocate:
 			addBusinessSum(goalCash, e.DestinationGoalID, e.Amount.Cents())
 			for _, u := range e.OriginUses {
-				addLot(e.DestinationGoalID, e.DestinationAccountID, "INCOME", u.OriginID, u.Amount.Cents())
+				// ALLOCATE preserves each source location. Its wire contract has
+				// no destination account: only a destination goal is created.
+				addLot(e.DestinationGoalID, u.AccountID, "INCOME", u.OriginID, u.Amount.Cents())
 			}
 		case bankv2.Purchase:
 			if e.SourceGoalID != "" {
@@ -362,9 +364,13 @@ func (g *nativeGraphV3) frozenCashFromIndependentV3(n nativeFrozenLedgerV3, stat
 	// Legacy allocations change ownership only, so their committed state never
 	// changes cash. The argument remains explicit alongside the native prefix.
 	_ = legacy
-	for _, entry := range g.bank.Credit.Credits {
-		if !origins[entry.Record.Event.OriginID] {
-			if err := add(entry.Record.Event.AccountID, -entry.Record.Event.Amount.Cents()); err != nil {
+	// Origins is the complete independent qualification inventory, including
+	// retained OpenIncome sources that predate sequenced external Credit.
+	// Reverse each later origin once; Credits is a subset and must not be
+	// subtracted a second time.
+	for _, origin := range g.bank.Credit.Origins {
+		if !origins[origin.ID] {
+			if err := add(origin.OriginalAccountID, -origin.Amount.Cents()); err != nil {
 				return err
 			}
 		}

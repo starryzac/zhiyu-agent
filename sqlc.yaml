@@ -1,0 +1,18 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: db/migrations
+    queries: db/queries
+    gen:
+      go:
+        package: dbv2
+        out: internal/generated/dbv2
+        sql_package: pgx/v5
+        emit_interface: true
+        emit_empty_slices: true
+        emit_json_tags: true
+        overrides:
+          - db_type: cents
+            go_type: int64
+          - db_type: hash256
+            go_type: string

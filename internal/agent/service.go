@@ -90,9 +90,10 @@ type modelInput struct {
 	Tools    []domain.ToolSchema `json:"tools"`
 	// Only IDs/kinds/digests are supplied as available references. Names and
 	// arbitrary database prose cannot inject tool instructions through this list.
-	References     []domain.Reference `json:"references"`
-	Observations   []modelObservation `json:"observations"`
-	ReferenceScope string             `json:"reference_scope,omitempty"`
+	References     []domain.Reference        `json:"references"`
+	Observations   []modelObservation        `json:"observations"`
+	ReferenceScope string                    `json:"reference_scope,omitempty"`
+	KnownPayees    []domain.KnownPayeeSignal `json:"known_payees,omitempty"`
 }
 type modelObservation struct {
 	Tool        string                      `json:"tool"`
@@ -218,10 +219,31 @@ func modelReferences(refs []domain.Reference, native bool) []domain.Reference {
 	return out
 }
 
+// Native grant tools are local OFFLINE reads and never enter a provider payload.
+func modelRegistry() []domain.ToolSchema {
+	tools := []domain.ToolSchema{}
+	for _, tool := range domain.Registry() {
+		if tool.Name != "native_grants" {
+			tools = append(tools, tool)
+		}
+	}
+	return tools
+}
+
 func DecodeTurn(raw []byte) (domain.Turn, error) { return domain.DecodeTurn(raw) }
 
-func (s *Service) Run(ctx context.Context, scope domain.Scope, turn domain.Turn) (Result, error) {
-	result := Result{Mode: turn.Mode, ProviderStatus: "NOT_RUN", Observations: []domain.Observation{}, References: []domain.Reference{}}
+func (s *Service) Run(ctx context.Context, scope domain.Scope, turn domain.Turn) (result Result, err error) {
+	stage := "TURN_DECODE"
+	defer func() {
+		if err != nil {
+			result.Observations = []domain.Observation{}
+			result.References = []domain.Reference{}
+			result.Candidate = nil
+			result.NativeCandidate = nil
+			err = turnFailure(stage, err, result.Budget, result.ProviderUsage)
+		}
+	}()
+	result = Result{Mode: turn.Mode, ProviderStatus: "NOT_RUN", Observations: []domain.Observation{}, References: []domain.Reference{}}
 	// Validate even in-process callers through the same closed transport contract.
 	raw, err := json.Marshal(turn)
 	if err != nil {
@@ -232,22 +254,27 @@ func (s *Service) Run(ctx context.Context, scope domain.Scope, turn domain.Turn)
 		return result, err
 	}
 	if turn.Mode == "MODEL" && s.provider == nil {
+		stage = "PROVIDER_CONFIGURATION"
 		return result, ErrProviderNotConfigured
 	}
 	ctx, cancel := context.WithTimeout(ctx, s.limits.Timeout)
 	defer cancel()
+	stage = "SNAPSHOT_READ"
 	snapshot, err := s.reader.Snapshot(ctx, scope)
 	if err != nil {
 		return result, err
 	}
 	snapshot = domain.CloneSnapshot(snapshot)
+	stage = "SNAPSHOT_VALIDATE"
 	if err = snapshot.Validate(scope); err != nil {
 		return result, err
 	}
 	observe := func(call domain.ToolCall) error {
+		stage = "TOOL_LIMIT"
 		if err := result.Budget.Tool(s.limits); err != nil {
 			return err
 		}
+		stage = "OBSERVE"
 		observation, err := domain.Observe(snapshot, call)
 		if err != nil {
 			return err
@@ -260,6 +287,7 @@ func (s *Service) Run(ctx context.Context, scope domain.Scope, turn domain.Turn)
 		if observation.NativeCandidate != nil {
 			result.NativeCandidate = observation.NativeCandidate
 		}
+		stage = "OBSERVATION_SIZE"
 		bounded, encodeErr := json.Marshal(result.Observations)
 		if encodeErr != nil || len(bounded) > 2*1024*1024 {
 			return domain.ErrBudget
@@ -271,60 +299,82 @@ func (s *Service) Run(ctx context.Context, scope domain.Scope, turn domain.Turn)
 	} else {
 		result.ModelUsed = true
 		result.ProviderStatus = "CALLED"
-		input := modelInput{Protocol: "zhiyu-agent-tools-v1", Text: turn.Text, Tools: domain.Registry(), References: snapshot.References(), Observations: []modelObservation{}}
+		input := modelInput{Protocol: "zhiyu-agent-tools-v1", Text: turn.Text, Tools: modelRegistry(), References: snapshot.References(), Observations: []modelObservation{}}
 		if snapshot.Native != nil {
-			input.ReferenceScope = "BOUNDED_CURRENT_8_ACCOUNTS_8_GOALS_20_NATIVE_POLICIES_4_LEGACY_OPERATIONS_8_RETAINED_OBJECTS; NOT_COMPLETE_INVENTORY"
+			input.ReferenceScope = "BOUNDED_CURRENT_8_ACCOUNTS_8_GOALS_20_NATIVE_POLICIES_4_LEGACY_OPERATIONS_8_RETAINED_OBJECTS_8_KNOWN_BILL_PAYEES; NOT_COMPLETE_INVENTORY"
 		}
 		// Account/receipt/bank identifiers are unnecessary for tool selection.
 		input.References = modelReferences(input.References, snapshot.Native != nil)
+		input.KnownPayees = snapshot.KnownPayeeSignals(input.References)
 		seen := map[string]bool{}
 		for {
+			stage = "CONTEXT"
 			if err = ctx.Err(); err != nil {
 				break
 			}
+			stage = "INPUT_ENCODE"
 			payload, encodeErr := json.Marshal(input)
 			if encodeErr != nil {
 				err = domain.ErrInvalid
 				break
 			}
+			stage = "RESERVE"
 			reservation, reserveErr := result.Budget.Reserve(s.limits, len(payload))
 			if reserveErr != nil {
 				err = reserveErr
 				break
 			}
+			stage = "PROVIDER"
 			reply, providerErr := s.generate(ctx, ProviderRequest{append(json.RawMessage(nil), payload...), reservation.InputTokens, reservation.OutputTokens})
 			if providerErr != nil {
 				if ctx.Err() != nil {
+					stage = "CONTEXT"
 					err = ctx.Err()
 				} else {
+					stage = providerFailureStage(providerErr)
+					if input, output, ok := rejectedReplyUsage(providerErr, reservation); ok {
+						result.ProviderUsage.InputTokens += input
+						result.ProviderUsage.OutputTokens += output
+						result.ProviderUsage.ReportedCalls++
+					}
 					err = ErrProvider
 				}
 				break
 			}
+			stage = "CONTEXT"
 			if err = ctx.Err(); err != nil {
 				break
 			}
+			stage = "USAGE"
 			if err = reservation.CheckUsage(reply.InputTokens, reply.OutputTokens); err != nil {
 				break
 			}
 			result.ProviderUsage.InputTokens += reply.InputTokens
 			result.ProviderUsage.OutputTokens += reply.OutputTokens
 			result.ProviderUsage.ReportedCalls++
+			stage = "REPLY_DECODE"
 			call, done, decodeErr := domain.DecodeReply(reply.JSON)
 			if decodeErr != nil {
 				err = decodeErr
 				break
 			}
 			if done {
+				stage = "DONE_WITHOUT_OBSERVATION"
 				if len(result.Observations) == 0 {
 					err = domain.ErrTool
 				}
+				break
+			}
+			stage = "MODEL_TOOL_SCOPE"
+			if call.Name == "native_grants" {
+				err = domain.ErrTool
 				break
 			}
 			fingerprint := call.Name
 			if call.Name == "object_status" || call.Name == "template_candidate" {
 				fingerprint += string(call.Arguments)
 			}
+			stage = "REPEAT_TOOL"
 			if seen[fingerprint] {
 				err = domain.ErrTool
 				break
@@ -334,38 +384,52 @@ func (s *Service) Run(ctx context.Context, scope domain.Scope, turn domain.Turn)
 			for _, o := range input.Observations {
 				available = append(available, o.References...)
 			}
-			if err = domain.CheckToolReferences(*call, available); err != nil {
+			stage = "TOOL_REFERENCE"
+			if err = domain.CheckToolReferences(*call, available, snapshot); err != nil {
 				break
 			}
 			if err = observe(*call); err != nil {
 				break
 			}
-			input.Observations = append(input.Observations, modelObserved(result.Observations[len(result.Observations)-1], snapshot.Native != nil))
+			latest := result.Observations[len(result.Observations)-1]
+			if call.Name == "template_candidate" && latest.NativeCandidate != nil {
+				// Server-compiled conditional candidate ends only the model loop.
+				// The shared context/fresh-reference/final-size gates still follow.
+				break
+			}
+			input.Observations = append(input.Observations, modelObserved(latest, snapshot.Native != nil))
 		}
 	}
 	if err == nil {
+		stage = "CONTEXT"
 		err = ctx.Err()
 	}
 	if err == nil {
 		var fresh domain.Snapshot
+		stage = "FRESH_SNAPSHOT"
 		fresh, err = s.reader.Snapshot(ctx, scope)
 		if err == nil {
+			stage = "CONTEXT"
+			err = ctx.Err()
+		}
+		if err == nil {
+			stage = "FRESH_REFERENCES"
 			err = domain.CheckReferences(scope, domain.CloneSnapshot(fresh), result.Observations)
 		}
 	}
 	if err == nil {
+		stage = "FINAL_SIZE"
 		raw, encodeErr := json.Marshal(result)
 		if encodeErr != nil || len(raw) > 2*1024*1024 {
 			err = domain.ErrBudget
 		}
 	}
+	if err == nil {
+		stage = "CONTEXT"
+		err = ctx.Err()
+	}
 	if err != nil {
-		// Rejected model output cannot leak a partially accepted candidate or
-		// stale financial observation through an otherwise successful envelope.
-		result.Observations = []domain.Observation{}
-		result.References = []domain.Reference{}
-		result.Candidate = nil
-		result.NativeCandidate = nil
+		// The deferred failure wrapper clears all observations/references/candidates.
 		return result, err
 	}
 	return result, nil

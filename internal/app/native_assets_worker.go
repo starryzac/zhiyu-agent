@@ -79,6 +79,10 @@ func assetValidateWitness(preview NativeAssetPreview, approval nativeAssetApprov
 }
 
 func assetStoredPermit(ctx context.Context, q queryRow, p Principal, operation funds.ID, request bankv2.Request, signature string) error {
+	return assetStoredPermitWithActivityRaw(ctx, q, p, operation, request, signature, nil)
+}
+
+func assetStoredPermitWithActivityRaw(ctx context.Context, q queryRow, p Principal, operation funds.ID, request bankv2.Request, signature string, fact *nativeActivityPermitRaw) error {
 	mode, modeErr := assetExecutionMode(ctx, q, p, operation)
 	if modeErr != nil {
 		return modeErr
@@ -86,9 +90,8 @@ func assetStoredPermit(ctx context.Context, q queryRow, p Principal, operation f
 	if mode == "STANDING" {
 		return assetStandingStoredPermit(ctx, q, p, operation, request, signature)
 	}
-	var raw []byte
-	var storedHash, rh, eh, sh, permit string
-	e := q.QueryRow(ctx, `SELECT original,original_hash::text,bank_request_hash::text,effect_hash::text,signature_hash::text,permit_id::text FROM native_submission_permits WHERE environment_id=$1 AND user_id=$2 AND operation_id=$3`, p.EnvironmentID.String(), p.UserID.String(), operation.String()).Scan(&raw, &storedHash, &rh, &eh, &sh, &permit)
+	stored, e := loadNativeAssetStoredPermitRow(ctx, q, p, operation, request.Effect.Kind, fact)
+	raw, storedHash, rh, eh, sh, permit := stored.original, stored.originalHash, stored.requestHash, stored.effectHash, stored.signatureHash, stored.permitID
 	var proof nativeAssetSubmissionProof
 	want, we := request.Digest()
 	effect, ee := request.Effect.Digest()
@@ -299,6 +302,13 @@ func (s *Service) assetPermit(ctx context.Context, c Claim) (nativePermitted, er
 			return out, e
 		}
 		if e = s.Store.PersistNativeLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); e != nil {
+			return out, e
+		}
+		cause, e := s.nativeTerminalCancellationCause(ctx, tx, p, c.OperationID, Code(permissionErr))
+		if e != nil {
+			return out, e
+		}
+		if e = s.recordFundsTerminalDecision(ctx, tx, p, "NATIVE", c.OperationID, "CANCELLED", cause); e != nil {
 			return out, e
 		}
 		if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {

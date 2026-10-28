@@ -20,9 +20,13 @@ export default function NativeActionRecovery<P extends ActionPreview>({ api, pre
   const title = api.family === 'payments' ? '负债支付' : '资产安排', hasCost = !!preview && BigInt(preview.fee_cents) + BigInt(preview.loss_cents) > 0n;
   useEffect(() => {
     setReady(false); setStorageError(''); setRecords([]); setSelectedKey(''); setFrontierTerminal(false);
-    try { const saved = loadActionLocators(api); setRecords(saved); setSelectedKey(saved.at(-1)?.key ?? ''); }
-    catch (cause) { setStorageError(userError(cause)); }
-    setReady(true);
+    let cancelled = false;
+    void (async () => {
+      try { const saved = await loadActionLocators(api); if (!cancelled) { setRecords(saved); setSelectedKey(saved.at(-1)?.key ?? ''); } }
+      catch (cause) { if (!cancelled) setStorageError(userError(cause)); }
+      finally { if (!cancelled) setReady(true); }
+    })();
+    return () => { cancelled = true; };
   }, [api, scope]);
   useEffect(() => { setConsent(false); setCostConsent(false); }, [preview?.id, preview?.reviewed_hash]);
   useEffect(() => { callbacks.current.onBlockedChange(blocked); }, [blocked]);
@@ -54,19 +58,23 @@ export default function NativeActionRecovery<P extends ActionPreview>({ api, pre
   async function submit() {
     if (blocked || !preview || !consent || (hasCost && !costConsent) || sending.current) return;
     sending.current = true; setBusy(true); setError('');
+    let saving = false, durable = false;
     try {
       if (!session) throw new Error('请先登录本人当前环境');
       if (Date.now() >= Date.parse(preview.expires_at)) { callbacks.current.onConsumed(); throw new Error('原审阅已到期，请重新读取当前完整事实；已发送的原操作继续沿原键核对'); }
       const original: ActionLocator<P> = { environment: session.environment, user_id: session.user_id, key: crypto.randomUUID(), command: { preview_id: preview.id, reviewed_hash: preview.reviewed_hash, ...(api.family === 'assets' ? { cost_reviewed: hasCost && costConsent } : {}) }, preview };
-      const saved = saveActionLocator(api, original); setRecords(saved); setSelectedKey(original.key); setFrontierTerminal(false); setConsent(false); setCostConsent(false); callbacks.current.onConsumed();
+      saving = true; const saved = await saveActionLocator(api, original); durable = true; setRecords(saved); setSelectedKey(original.key); setFrontierTerminal(false); setConsent(false); setCostConsent(false); callbacks.current.onConsumed();
       await api.accept(original); setBatch((value) => value + 1);
-    } catch (cause) { setError(`${userError(cause)} 已保存的原请求将沿原键核对；202 或断连都不表示付款或本金已结清。`); }
+    } catch (cause) {
+      if (saving && !durable) setStorageError('本机完整恢复资料尚未可靠回读，已停止新提交；请保留原资料并重新打开后核对。');
+      setError(`${userError(cause)} ${durable ? '已保存的原请求将沿原键核对；202 或断连都不表示付款或本金已结清。' : '本笔资金请求尚未发送，原资料保留。'}`);
+    }
     finally { sending.current = false; setBusy(false); }
   }
   async function replay() {
     if (busy || checking || !selected || !independent || !notFound || !replayConsent || storageError || sending.current) return;
     sending.current = true; setBusy(true); setError(''); setReplayConsent(false);
-    try { const original = loadActionLocators(api).find((r) => r.key === selected.key); if (!original) throw new Error('本机原载荷缺失'); await api.accept(original); setBatch((value) => value + 1); }
+    try { const original = (await loadActionLocators(api)).find((r) => r.key === selected.key); if (!original) throw new Error('本机原载荷缺失'); await api.accept(original); setBatch((value) => value + 1); }
     catch (cause) { setError(`${userError(cause)} 原键及完整原载荷保留，不创建另一笔安排。`); }
     finally { sending.current = false; setBusy(false); }
   }

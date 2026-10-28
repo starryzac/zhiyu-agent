@@ -2,6 +2,7 @@ package banksim
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"zhiyu.local/zhiyu-go/internal/execution/bankcredit"
@@ -11,8 +12,19 @@ import (
 func creditMoney(n int64) (funds.Money, error) { return funds.NewMoney(n) }
 
 func (s *Store) CurrentIncomeState(ctx context.Context, namespace, user string) (bankcredit.CurrentState, error) {
+	return s.currentIncomeState(ctx, namespace, user, nil)
+}
+
+// CurrentIncomeStateAt uses an explicit server-owned simulation clock. It
+// changes only this observation's timestamp, never any economic original.
+// Ordinary/default reads keep the PostgreSQL wall-clock path above.
+func (s *Store) CurrentIncomeStateAt(ctx context.Context, namespace, user string, at time.Time) (bankcredit.CurrentState, error) {
+	return s.currentIncomeState(ctx, namespace, user, &at)
+}
+
+func (s *Store) currentIncomeState(ctx context.Context, namespace, user string, at *time.Time) (bankcredit.CurrentState, error) {
 	out := bankcredit.CurrentState{Protocol: bankcredit.Protocol + "/state", Namespace: namespace, UserID: user, Accounts: []bankcredit.Account{}, Credits: []bankcredit.Entry{}, Origins: []bankcredit.Origin{}}
-	if !bankcredit.Scope(namespace, user) {
+	if !bankcredit.Scope(namespace, user) || at != nil && at.IsZero() {
 		return out, bankcredit.ErrInvalid
 	}
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
@@ -25,6 +37,9 @@ func (s *Store) CurrentIncomeState(ctx context.Context, namespace, user string) 
 	}
 	if err = tx.QueryRow(ctx, `SELECT clock_timestamp(),coalesce((SELECT max(sequence) FROM bank.external_credits WHERE namespace=$1 AND user_id=$2),0),coalesce((SELECT max(sequence) FROM bank.operations WHERE namespace=$1 AND user_id=$2),0),coalesce((SELECT max(sequence) FROM bank.v2_operations WHERE namespace=$1 AND user_id=$2),0)`, namespace, user).Scan(&out.CapturedAt, &out.CreditWatermark, &out.V1OperationWatermark, &out.V2OperationWatermark); err != nil {
 		return out, err
+	}
+	if at != nil {
+		out.CapturedAt = at.UTC()
 	}
 	rows, err := tx.Query(ctx, `SELECT account_id,balance_cents,reserved_cents FROM bank.accounts WHERE namespace=$1 AND user_id=$2 ORDER BY account_id LIMIT $3`, namespace, user, bankcredit.MaxAccounts+1)
 	if err != nil {

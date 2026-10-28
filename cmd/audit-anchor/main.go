@@ -20,6 +20,8 @@ import (
 	executionaudit "zhiyu.local/zhiyu-go/internal/execution/audit"
 )
 
+var keyIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
 func writeNew(path string, raw []byte) error {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
@@ -38,17 +40,20 @@ func run(args []string) error {
 	}
 	f := flag.NewFlagSet("audit-anchor", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	var privatePath, output, keyID, capturePath string
+	var privatePath, output, keyID, capturePath, nativeTrust, nativeTrustSHA, configSHA string
 	f.StringVar(&privatePath, "private-key", "", "local private key path")
 	f.StringVar(&output, "output", "", "new public output file")
 	f.StringVar(&keyID, "key-id", "", "operator key identifier")
 	f.StringVar(&capturePath, "capture", "", "retained captured bundle JSON")
-	if f.Parse(args[1:]) != nil || f.NArg() != 0 || privatePath == "" || output == "" || !regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`).MatchString(keyID) {
+	f.StringVar(&nativeTrust, "native-trust", "", "explicit independent public trust-v2 profile for native signing")
+	f.StringVar(&nativeTrustSHA, "native-trust-sha256", "", "exact public profile original SHA256")
+	f.StringVar(&configSHA, "config-sha256", "", "independent expected public configuration SHA256")
+	if f.Parse(args[1:]) != nil || f.NArg() != 0 || privatePath == "" || output == "" || !keyIDPattern.MatchString(keyID) {
 		return errors.New("invalid explicit local tool arguments")
 	}
 	switch args[0] {
 	case "keygen":
-		if capturePath != "" {
+		if capturePath != "" || nativeTrust != "" || nativeTrustSHA != "" || configSHA != "" {
 			return errors.New("keygen takes no capture")
 		}
 		privateAbsolute, e1 := filepath.Abs(privatePath)
@@ -108,9 +113,20 @@ func run(args []string) error {
 		if executionaudit.RegisterBusiness(registry) != nil {
 			return errors.New("business verifier unavailable")
 		}
+		if nativeCapture(bundle) {
+			trust, err := loadNativeTrust(nativeTrust, nativeTrustSHA, configSHA, keyID, ed25519.PrivateKey(private), bundle)
+			if err != nil {
+				return err
+			}
+			if executionaudit.RegisterNativeBusinessV3WithTrust(registry, trust) != nil {
+				return errors.New("native verifier unavailable")
+			}
+		} else if nativeTrust != "" || nativeTrustSHA != "" || configSHA != "" {
+			return trustRefusal("NATIVE_PROFILE_REQUIRES_NATIVE_CAPTURE")
+		}
 		result := audit.VerifyCaptured(bundle, registry, audit.CaptureOptions{Bounds: audit.DefaultBounds()})
 		if result.Status != audit.Valid {
-			return errors.New("capture is not a complete valid supported business scope; no anchor signed")
+			return fmt.Errorf("capture is not a complete valid supported business scope (status=%s); no anchor signed", result.Status)
 		}
 		anchor, err := audit.SignAnchor(bundle.Manifest, keyID, ed25519.PrivateKey(private))
 		if err != nil {

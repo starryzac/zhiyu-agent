@@ -11,7 +11,7 @@ import (
 )
 
 const NativeMaximumRawRowBytesV3 = 16 << 20
-const NativeMaximumRawCaptureBytesV3 = 64 << 20
+const NativeMaximumRawCaptureBytesV3 = 128 << 20
 
 // gzip preserves exact source bytes while avoiding the fourfold expansion of
 // bytea JSON followed by canonical hex. It is an explicit new-v3 encoding;

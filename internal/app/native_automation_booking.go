@@ -48,6 +48,9 @@ func (s *Service) standingNativeReject(ctx context.Context, tx pgx.Tx, c Claim, 
 	if err = finalizeNativeStandingBudget(ctx, tx, p, plan.Occurrence.ID, funds.Money{}, s.now()); err != nil {
 		return err
 	}
+	if err = s.recordNativeRejection(ctx, tx, p, c.OperationID, result); err != nil {
+		return err
+	}
 	if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
 		return err
 	}

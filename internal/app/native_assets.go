@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -62,9 +63,8 @@ func nativeAssetKind(kind bankv2.Kind) bool {
 	return kind == bankv2.Purchase || kind == bankv2.Redeem || kind == bankv2.Mature
 }
 func NativeAssetReviewHash(preview NativeAssetPreview) (string, error) {
-	preview.ReviewedHash = ""
-	raw, e := encode(preview)
-	return Hash(raw), e
+	_, hash, err := nativeAssetReviewBody(preview)
+	return hash, err
 }
 func nativeAssetObjectID(namespace, kind, id string) funds.ID {
 	h := sha256.Sum256([]byte("native-asset-object-v1\x00" + namespace + "\x00" + kind + "\x00" + id))
@@ -320,6 +320,14 @@ func deriveNativeAssetPreview(snapshot templateSnapshot, in NativeAssetRequest, 
 }
 
 func deriveNativeAssetPreviewWithSource(snapshot templateSnapshot, in NativeAssetRequest, id, session funds.ID, state bankv2.CurrentState, quote *bankv2.Quote, pending []bankv2.Request, source *nativeStandingAssetSource, expiryCap ...time.Time) (NativeAssetPreview, error) {
+	return deriveNativeAssetPreviewWithSourceForecast(planning.Forecast365, snapshot, in, id, session, state, quote, pending, source, expiryCap...)
+}
+
+func deriveNativeAssetPreviewWithSourceForecast(forecast nativeAssetForecast, snapshot templateSnapshot, in NativeAssetRequest, id, session funds.ID, state bankv2.CurrentState, quote *bankv2.Quote, pending []bankv2.Request, source *nativeStandingAssetSource, expiryCap ...time.Time) (NativeAssetPreview, error) {
+	return deriveNativeAssetPreviewWithReplayBody(forecast, nil, snapshot, in, id, session, state, quote, pending, source, expiryCap...)
+}
+
+func deriveNativeAssetPreviewWithReplayBody(forecast nativeAssetForecast, capture *nativeAssetReviewCapture, snapshot templateSnapshot, in NativeAssetRequest, id, session funds.ID, state bankv2.CurrentState, quote *bankv2.Quote, pending []bankv2.Request, source *nativeStandingAssetSource, expiryCap ...time.Time) (NativeAssetPreview, error) {
 	var out NativeAssetPreview
 	if snapshot.Native == nil || !nativeAssetKind(in.Kind) || in.PolicyVersionID == (funds.ID{}) {
 		return out, reject("INVALID_NATIVE_ASSET", nil)
@@ -349,7 +357,7 @@ func deriveNativeAssetPreviewWithSource(snapshot templateSnapshot, in NativeAsse
 		return out, reject("ASSET_POLICY_REQUIRED", e)
 	}
 	forecastInput := snapshot.forecastInput(365)
-	before, e := planning.Forecast365(forecastInput)
+	before, e := forecast(forecastInput)
 	if e != nil {
 		return out, reject("ASSET_PROTECTION_INCOMPLETE", e)
 	}
@@ -637,7 +645,7 @@ func deriveNativeAssetPreviewWithSource(snapshot templateSnapshot, in NativeAsse
 	if e != nil {
 		return out, e
 	}
-	after, e := planning.Forecast365(afterInput)
+	after, e := forecast(afterInput)
 	if e != nil {
 		return out, reject("ASSET_PROTECTION_INCOMPLETE", e)
 	}
@@ -652,8 +660,7 @@ func deriveNativeAssetPreviewWithSource(snapshot templateSnapshot, in NativeAsse
 	deps := planning.DependencyVector{FundsVersion: snapshot.FundsVersion, PolicyVersion: view.Version.Version, ProductTermsVersion: uint64(effect.Product.Terms.Version), ProductAvailabilityVersion: uint64(effect.Product.Availability.Version), SourceEvidenceVersion: snapshot.SourceVersion, WriterGeneration: snapshot.WriterGeneration, ControlVersion: snapshot.ControlVersion}
 	in.Timezone = snapshot.Timezone
 	out = NativeAssetPreview{NativeActionPreviewHeader: NativeActionPreviewHeader{ID: id, Scope: snapshot.Facts.Scope, SessionID: session, Kind: in.Kind, EffectHash: effectHash, Dependencies: deps, SourceHash: snapshot.Facts.SourceHash, InventoryHash: Hash(snapshot.InventoryRaw), CreatedAt: snapshot.AsOf, ExpiresAt: expires}, Protocol: NativeAssetProtocol, Timezone: snapshot.Timezone, Request: in, Policy: view, Policies: snapshot.Views, Ledger: captureNativeAssetLedger(*snapshot.Native), InventoryOriginal: append([]byte(nil), snapshot.InventoryRaw...), BankState: state, Quote: quote, Position: original, CashResources: cash, GoalUses: goalUses, PendingPurchases: pending, BankEffect: effect, ForecastInput: forecastInput, ForecastBefore: before, ForecastAfter: after, RecoveryTrigger: trigger}
-	out.ReviewedHash, e = NativeAssetReviewHash(out)
-	return out, e
+	return finishNativeAssetReview(out, capture)
 }
 
 func (s *Service) PreviewNativeAsset(ctx context.Context, p Principal, in NativeAssetRequest) (NativeAssetPreview, error) {
@@ -723,12 +730,13 @@ func loadNativeAssetPreview(ctx context.Context, q queryRow, p Principal, id fun
 	if decode(raw, &out) != nil || out.NativeActionPreviewHeader != header || out.Protocol != NativeAssetProtocol || !nativeAssetKind(kind) || out.Kind != out.BankEffect.Kind {
 		return out, reject("EVIDENCE_INVALID", nil)
 	}
-	h, e := NativeAssetReviewHash(out)
+	body, h, e := nativeAssetReviewBody(out)
 	eh, ee := out.BankEffect.Digest()
 	if e != nil || ee != nil || h != out.ReviewedHash || eh != out.EffectHash || out.BankAuthority || out.Policy.Version.Scope != out.Scope || out.ForecastInput.Scope != out.Scope || !out.ForecastInput.AsOf.Equal(out.CreatedAt) || out.ForecastInput.Timezone != out.Timezone || out.Request.Timezone != out.Timezone || out.ForecastInput.Facts.SourceHash != out.SourceHash || out.ForecastInput.InventoryHash != out.InventoryHash {
 		return out, reject("EVIDENCE_INVALID", e)
 	}
-	before, e := planning.Forecast365(out.ForecastInput)
+	forecast := newNativeAssetForecastReplay(planning.Forecast365)
+	before, e := forecast.evaluate(out.ForecastInput)
 	if e != nil {
 		return out, e
 	}
@@ -736,18 +744,44 @@ func loadNativeAssetPreview(ctx context.Context, q queryRow, p Principal, id fun
 	if e != nil {
 		return out, e
 	}
-	after, e := planning.Forecast365(afterInput)
+	after, e := forecast.evaluate(afterInput)
 	if e != nil {
 		return out, e
 	}
-	a, _ := encode(before)
-	b, _ := encode(out.ForecastBefore)
-	c, _ := encode(after)
-	d, _ := encode(out.ForecastAfter)
-	if string(a) != string(b) || string(c) != string(d) {
+	if !nativeAssetForecastResultsMatch(before, out.ForecastBefore, after, out.ForecastAfter) {
 		return out, reject("EVIDENCE_INVALID", nil)
 	}
-	if e = replayNativeAssetPreview(out); e != nil {
+	// Only this loader owns out: it has just decoded a private original, has
+	// made no external call since capture, and uses the fixed pure calculator.
+	// This closure cannot escape, accept another preview or inject a callback.
+	replayLoaded := func() error {
+		snapshot, err := nativeAssetReplaySnapshot(out)
+		if err != nil {
+			return err
+		}
+		var capture nativeAssetReviewCapture
+		if nativeAssetStreamReviewAvailable && len(body) != 0 && h == out.ReviewedHash {
+			capture.stream = newNativeAssetReviewStream(body)
+		}
+		expected, err := deriveNativeAssetPreviewWithReplayBody(forecast.evaluate, &capture, snapshot, out.Request, out.ID, out.SessionID, out.BankState, out.Quote, out.PendingPurchases, nil, out.ExpiresAt)
+		if err != nil {
+			return reject("EVIDENCE_INVALID", err)
+		}
+		if capture.stream != nil && capture.stream.complete && capture.reviewedHash == expected.ReviewedHash {
+			if !capture.stream.matches() || capture.reviewedHash != out.ReviewedHash {
+				return reject("EVIDENCE_INVALID", nil)
+			}
+			return nil
+		}
+		if len(body) == 0 || h != out.ReviewedHash || len(capture.original) == 0 || capture.reviewedHash != expected.ReviewedHash {
+			return compareNativeAssetReplayPreview(expected, out, &capture)
+		}
+		if !bytes.Equal(capture.original, body) || capture.reviewedHash != out.ReviewedHash {
+			return reject("EVIDENCE_INVALID", nil)
+		}
+		return nil
+	}
+	if e = replayLoaded(); e != nil {
 		return out, e
 	}
 	return out, nil

@@ -50,7 +50,7 @@ func agentRoutes(r chi.Router, s *app.Service, options *AgentOptions) {
 		}
 		var in domain.Turn
 		if body(req, &in) != nil {
-			agentFail(w, domain.ErrInvalid)
+			agentFail(w, assistant.InvalidTurnFailure())
 			return
 		}
 		p := req.Context().Value(principalKey{}).(app.Principal)
@@ -77,5 +77,5 @@ func agentFail(w http.ResponseWriter, err error) {
 	case errors.Is(err, context.DeadlineExceeded):
 		code, status = "AGENT_TIMEOUT", 504
 	}
-	writeJSON(w, status, Error{Code: code, Message: message, RequestID: w.Header().Get("X-Request-ID"), RetryClass: retry, Details: map[string]string{}})
+	writeJSON(w, status, Error{Code: code, Message: message, RequestID: w.Header().Get("X-Request-ID"), RetryClass: retry, Details: assistant.FailureDetails(err)})
 }

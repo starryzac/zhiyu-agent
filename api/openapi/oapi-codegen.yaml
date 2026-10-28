@@ -1,0 +1,6 @@
+package: httpv2
+generate:
+  models: true
+output-options:
+  skip-prune: true
+output: ../../internal/generated/httpv2/types.gen.go

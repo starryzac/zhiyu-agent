@@ -69,6 +69,9 @@ type Service struct {
 	// WriterPin is installed by the local operator. It never follows a database
 	// generation automatically and is not a browser or model supplied identity.
 	WriterPin *RecoveryWriterPin
+	// Only explicitly enabled daemon discovery uses negative idle cursors.
+	// Public Import, previews, T1/T2/T3, audit and recovery never consult it.
+	nativeIdle *nativeDaemonIdle
 	// Failpoint is configured only by isolated tests, never by a browser/model.
 	Failpoint func(string) error
 }
@@ -124,6 +127,12 @@ func (s *Service) begin(ctx context.Context) (pgx.Tx, error) {
 	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
 	if err == nil {
 		err = s.installRecoveryWriter(ctx, tx)
+	}
+	if err == nil {
+		// This is the transaction's business start, not the time of every
+		// later financial mutation. A source witness supplies the exact AsOf
+		// used to validate its already fixed funds-version prefix.
+		_, err = tx.Exec(ctx, `SELECT set_config('zhiyu.business_as_of',$1,true)`, s.now().UTC().Format(time.RFC3339Nano))
 	}
 	if err != nil && tx != nil {
 		rollback(ctx, tx)

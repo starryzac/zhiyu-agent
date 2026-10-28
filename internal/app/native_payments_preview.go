@@ -260,6 +260,17 @@ func buildNativePaymentPreview(snapshot templateSnapshot, in NativePaymentReques
 	if liability == nil {
 		return out, reject("PAYMENT_BANK_ORIGINAL_REQUIRED", nil)
 	}
+	if snapshot.Native == nil {
+		return out, reject("NATIVE_STORAGE_REQUIRED", nil)
+	}
+	// An unresolved original payment owns this liability. Its independently
+	// paid counter may already have advanced after a lost response; recover the
+	// original before attempting to interpret a replacement amount.
+	for _, hold := range snapshot.Native.Holds {
+		if hold.ResourceKind == "LIABILITY" && hold.ResourceID == debt.ID && hold.State == funds.Reserved {
+			return out, reject("PAYMENT_OPERATION_PENDING", nil)
+		}
+	}
 	base := NativePaymentPreview{Policy: *view, Debt: *debt, Liability: *liability, Request: in, Timezone: in.Timezone}
 	if liability.Original.Kind == "BILL" {
 		proof, e := nativeBillProofForDebt(snapshot, *debt)
@@ -277,14 +288,6 @@ func buildNativePaymentPreview(snapshot templateSnapshot, in NativePaymentReques
 	amount, e := nativePaymentPreviewAmount(base, now)
 	if e != nil {
 		return out, e
-	}
-	if snapshot.Native == nil {
-		return out, reject("NATIVE_STORAGE_REQUIRED", nil)
-	}
-	for _, hold := range snapshot.Native.Holds {
-		if hold.ResourceKind == "LIABILITY" && hold.ResourceID == debt.ID && hold.State == funds.Reserved {
-			return out, reject("PAYMENT_OPERATION_PENDING", nil)
-		}
 	}
 	resources, e := selectNativeUnownedCash(*snapshot.Native, []funds.ID{in.SourceAccountID}, amount)
 	if e != nil || resources.Amount != amount {

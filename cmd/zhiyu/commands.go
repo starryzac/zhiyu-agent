@@ -27,11 +27,13 @@ import (
 )
 
 type commandOptions struct {
-	Command, Config     string
-	Amount              int64
-	BankFacts           string
-	RecoveryRequest     string
-	Once, Pause, Resume bool
+	Command, Config, WebRoot string
+	Amount                   int64
+	BankFacts                string
+	RecoveryRequest          string
+	Once, Pause, Resume      bool
+	ObserveWorkAttempts      bool
+	DaemonIdleSkip           bool
 }
 
 func options(args []string) (commandOptions, error) {
@@ -48,14 +50,33 @@ func options(args []string) (commandOptions, error) {
 	f := flag.NewFlagSet("zhiyu", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	f.StringVar(&result.Config, "config", "", "explicit role runtime file")
+	f.StringVar(&result.WebRoot, "web-root", "", "explicit package web directory; API only, disabled by default")
 	f.Int64Var(&result.Amount, "amount-cents", 10000, "immutable first simulated income cents")
 	f.StringVar(&result.BankFacts, "bank-facts", "", "explicit controlled bank catalog/liability fixture file")
 	f.StringVar(&result.RecoveryRequest, "recovery-request", "", "explicit local operator recovery request file")
 	f.BoolVar(&result.Once, "once", false, "run one independent standing-consumer step")
 	f.BoolVar(&result.Pause, "pause", false, "pause independent standing admission")
 	f.BoolVar(&result.Resume, "resume", false, "resume independent standing admission")
-	if f.Parse(args[1:]) != nil || f.NArg() != 0 || result.Config == "" {
+	f.BoolVar(&result.ObserveWorkAttempts, "observe-work-attempts", false, "operator-only fixed function attempt counters on stderr; disabled by default")
+	f.BoolVar(&result.DaemonIdleSkip, "native-idle-skip", false, "operator opt-in: bounded daemon negative observation cursor; native-standing only")
+	if f.Parse(args[1:]) != nil || f.NArg() != 0 || result.Config == "" && !(result.Command == "api" && result.WebRoot != "") {
 		return result, errors.New("command requires -config with an explicit role runtime file")
+	}
+	if result.WebRoot != "" && result.Command != "api" {
+		return result, errors.New("-web-root is supported only for api")
+	}
+	if result.DaemonIdleSkip && result.Command != "native-standing" {
+		return result, errors.New("-native-idle-skip is supported only for native-standing")
+	}
+	if result.ObserveWorkAttempts {
+		switch result.Command {
+		case "api", "worker", "standing", "native-standing", "projection", "audit-worker":
+			if result.Config == "" {
+				return result, errors.New("work attempt observation requires an explicit configured application command")
+			}
+		default:
+			return result, errors.New("work attempt observation is supported only for application processes")
+		}
 	}
 	if (result.Once && result.Command != "standing" && result.Command != "native-standing" && result.Command != "projection" && result.Command != "audit-worker") || ((result.Pause || result.Resume) && result.Command != "standing") || result.Pause && result.Resume || result.Once && (result.Pause || result.Resume) {
 		return result, errors.New("invalid standing control options")
@@ -73,6 +94,9 @@ func runConfigured(ctx context.Context, args []string, out io.Writer, logger *sl
 	opts, err := options(args)
 	if err != nil {
 		return err
+	}
+	if opts.Config == "" {
+		return errors.New("configured API requires its explicit role runtime")
 	}
 	c, err := platform.LoadRuntime(opts.Config)
 	if err != nil {
@@ -96,14 +120,20 @@ func runConfigured(ctx context.Context, args []string, out io.Writer, logger *sl
 	if (opts.Command == "seed" || opts.Command == "demo-income" || opts.Command == "demo-bank-facts") && c.Role != "seed" {
 		return errors.New("trusted demo setup requires the separate seed runtime")
 	}
+	if opts.WebRoot != "" && c.WebOrigin != "http://"+c.HTTPConfig().ListenAddr {
+		return errors.New("static web requires web_origin to equal the API listener origin")
+	}
 	store, err := postgres.New(ctx, c.AppDSN)
 	if err != nil {
 		return err
 	}
 	defer store.Close()
+	// NewClient copies http.Client but retains the shared Transport identity.
+	// Keep the original direct/no-proxy, five-second and no-redirect contract.
+	bankHTTPClient := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{Proxy: nil}}
 	var bank app.Bank
 	if c.Role == "app" {
-		client, e := banksim.NewClient(c.BankURL, &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{Proxy: nil}})
+		client, e := banksim.NewClient(c.BankURL, bankHTTPClient)
 		if e != nil {
 			return errors.New("bank client configuration invalid")
 		}
@@ -116,11 +146,11 @@ func runConfigured(ctx context.Context, args []string, out io.Writer, logger *sl
 			return e
 		}
 		service.WriterPin = writerPin
-		nativeClient, e := banksim.NewClientV2(c.BankURL, &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{Proxy: nil}})
+		nativeClient, e := banksim.NewClientV2(c.BankURL, bankHTTPClient)
 		if e != nil {
 			return errors.New("native bank client configuration invalid")
 		}
-		creditClient, e := banksim.NewExternalCreditClient(c.BankURL, &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{Proxy: nil}})
+		creditClient, e := banksim.NewExternalCreditClient(c.BankURL, bankHTTPClient)
 		if e != nil {
 			return errors.New("income inventory client configuration invalid")
 		}
@@ -129,6 +159,19 @@ func runConfigured(ctx context.Context, args []string, out io.Writer, logger *sl
 		service.NativeBillSources = configuredNativeBills(opts.Config, logger)
 		service.ForecastHistorySources = configuredForecastHistory(opts.Config, c.Namespace, logger)
 		service.AuditTrust = configuredAudit(opts.Config, c, logger)
+		if opts.DaemonIdleSkip {
+			head, e := banksim.NewDaemonObservationClient(creditClient, bank.(*banksim.Client), nativeClient)
+			if e == nil {
+				e = service.EnableNativeDaemonIdle(head, auditConfigurationDigest(c))
+			}
+			if e != nil {
+				logger.Info("native_idle_cursor_unavailable", "mode", "FULL_FALLBACK", "configuration_printed", false)
+			}
+		}
+	}
+	if opts.ObserveWorkAttempts {
+		stopObservation := startWorkAttemptHeartbeat(logger, opts.Command)
+		defer stopObservation()
 	}
 	switch opts.Command {
 	case "recovery-control":
@@ -160,7 +203,10 @@ func runConfigured(ctx context.Context, args []string, out io.Writer, logger *sl
 			return errors.New("worker identity unavailable")
 		}
 		logger.Info("worker_start", "environment", c.Environment, "namespace", c.Namespace, "simulation", true)
-		if service.RunWorker(ctx, owner.String()) != nil {
+		if err := service.RunWorker(ctx, owner.String()); err != nil {
+			if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+				return nil
+			}
 			return errors.New("worker stopped with an application processing error")
 		}
 		return nil
@@ -246,6 +292,12 @@ func runConfigured(ctx context.Context, args []string, out io.Writer, logger *sl
 		server := httpapi.Server(config, logger)
 		provider, limits := configuredAgent(opts.Config, logger, os.Getenv)
 		server.Handler = httpapi.HandlerWithAgentProvider(config, logger, service, c.WebOrigin, provider, limits)
+		handler, closeWeb, err := optionalStaticWeb(server.Handler, opts.WebRoot)
+		if err != nil {
+			return err
+		}
+		server.Handler = handler
+		defer closeWeb()
 		listener, err := net.Listen("tcp", config.ListenAddr)
 		if err != nil {
 			return errors.New("API loopback listener unavailable")

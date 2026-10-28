@@ -1,0 +1,61 @@
+openapi: 3.0.3
+info:
+  title: Zhiyu Go process foundation
+  version: 0.1.0
+  description: R1 process diagnostics only. Financial routes and readiness remain closed.
+paths:
+  /livez:
+    get:
+      operationId: liveness
+      responses:
+        '200':
+          description: This process can respond; no database or financial claim.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, simulation]
+                properties:
+                  status: { type: string, enum: [alive] }
+                  simulation: { type: boolean, enum: [true] }
+  /readyz:
+    get:
+      operationId: readiness
+      responses:
+        '503':
+          description: R1 foundation has no migrated database or execution chain.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/v2/status:
+    get:
+      operationId: processStatus
+      responses:
+        '200':
+          description: Diagnostic state with no user financial data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [environment, stage, simulation, financial_operations_enabled, database_configured, database_verified]
+                properties:
+                  environment: { type: string }
+                  stage: { type: string, enum: [R1_FOUNDATION] }
+                  simulation: { type: boolean, enum: [true] }
+                  financial_operations_enabled: { type: boolean, enum: [false] }
+                  database_configured: { type: boolean }
+                  database_verified: { type: boolean, enum: [false] }
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message, request_id, retry_class, operation_id, details]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+        retry_class: { type: string }
+        operation_id: { type: string, nullable: true }
+        details:
+          type: object
+          additionalProperties: { type: string }

@@ -229,32 +229,71 @@ paths:
   /api/v2/agent/turn:
     post:
       operationId: runAgentTurn
-      summary: Read owned current objects or suggest a single-goal form; never confirm or execute
-      description: >-
-        Scope is derived from the authenticated session. Input, model output and
-        observations cannot grant USER authority. Registered tool arguments reject
-        unknown or duplicate fields. References are rechecked before returning.
-        OFFLINE does not contact a model. MODEL requires explicit configured
-        provider, duration/call/token/cost budgets and verified transport bounds.
-      security: [{ BearerAuth: [], CSRFToken: [] }]
-      parameters: [{ $ref: '#/components/parameters/Origin' }]
+      summary: Read owned objects or produce a conditional typed candidate; never confirm
+        or execute
+      description: Scope comes from the authenticated USER session. Thirteen registered
+        closed tools read current owned evidence or return an IF_USER_CONFIRMED template
+        candidate. OFFLINE never contacts a model. MODEL has text only, configured provider
+        and original duration/call/token/cost limits. Native grant tools, data, references
+        and derived collection digests are OFFLINE-only and never enter provider payloads
+        or MODEL results. References are re-read before returning. No observation or
+        candidate grants authority.
+      security:
+      - BearerAuth: []
+        CSRFToken: []
+      parameters:
+      - $ref: '#/components/parameters/Origin'
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/AgentTurn' }
+            schema:
+              $ref: '#/components/schemas/AgentTurn'
       responses:
         '200':
-          description: Current display observations and optional unconfirmed form draft. No bank effect.
+          description: Current display observations and optional unconfirmed form draft.
+            No bank effect.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/AgentResult' }
-        '400': { $ref: '#/components/responses/Failure' }
-        '409': { $ref: '#/components/responses/Failure' }
-        '429': { $ref: '#/components/responses/Failure' }
-        '503': { $ref: '#/components/responses/Failure' }
-        '504': { $ref: '#/components/responses/Failure' }
-        default: { $ref: '#/components/responses/Failure' }
+              schema:
+                $ref: '#/components/schemas/AgentResult'
+        '400':
+          description: Bounded safe Agent failure labels and validated counters; unknown
+            usage is not an invoice or zero cost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativeAgentError'
+        '409':
+          description: Bounded safe Agent failure labels and validated counters; unknown
+            usage is not an invoice or zero cost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativeAgentError'
+        '429':
+          description: Bounded safe Agent failure labels and validated counters; unknown
+            usage is not an invoice or zero cost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativeAgentError'
+        '503':
+          description: Bounded safe Agent failure labels and validated counters; unknown
+            usage is not an invoice or zero cost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativeAgentError'
+        '504':
+          description: Bounded safe Agent failure labels and validated counters; unknown
+            usage is not an invoice or zero cost.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NativeAgentError'
+        default:
+          $ref: '#/components/responses/Failure'
   /api/v2/goals:
     post:
       operationId: createGoal
@@ -2497,173 +2536,37 @@ components:
         has_more: { type: boolean }
         verification_scope: { type: string, enum: [ACTIVITY_MEMBERSHIP_SNAPSHOT] }
     AgentStatus:
-      type: object
-      additionalProperties: false
-      required: [mode, provider_status, provider_configured, authority]
-      properties:
-        mode: { type: string, enum: [OFFLINE, MODEL_AVAILABLE] }
-        provider_status: { type: string, enum: [NOT_RUN, CONFIGURED_NOT_VERIFIED] }
-        provider_configured: { type: boolean }
-        authority: { type: boolean, enum: [false] }
+      $ref: '#/components/schemas/NativeAgentStatus'
     AgentTurn:
-      x-go-type: json.RawMessage
-      oneOf:
-        - $ref: '#/components/schemas/AgentOfflineTurn'
-        - $ref: '#/components/schemas/AgentModelTurn'
-      description: Maximum raw request 8192 UTF-8 bytes; no environment, user, authorization, amount or arbitrary URL fields.
+      $ref: '#/components/schemas/NativeAgentTurn'
     AgentOfflineTurn:
-      type: object
-      additionalProperties: false
-      required: [mode, tool]
-      properties:
-        mode: { type: string, enum: [OFFLINE] }
-        tool:
-          x-go-type: json.RawMessage
-          oneOf:
-            - $ref: '#/components/schemas/AgentEmptyTool'
-            - $ref: '#/components/schemas/AgentGoalTool'
-            - $ref: '#/components/schemas/AgentOperationTool'
+      $ref: '#/components/schemas/NativeAgentOfflineTurn'
     AgentModelTurn:
-      type: object
-      additionalProperties: false
-      required: [mode, text]
-      properties:
-        mode: { type: string, enum: [MODEL] }
-        text: { type: string, minLength: 1, maxLength: 4096, description: Additional server bound is 4096 UTF-8 bytes, not characters. }
+      $ref: '#/components/schemas/NativeAgentModelTurn'
     AgentEmptyTool:
-      type: object
-      additionalProperties: false
-      required: [name, arguments]
-      properties:
-        name: { type: string, enum: [funds_summary, current_rules] }
-        arguments: { type: object, additionalProperties: false }
+      $ref: '#/components/schemas/NativeAgentEmptyTool'
     AgentGoalTool:
-      type: object
-      additionalProperties: false
-      required: [name, arguments]
-      properties:
-        name: { type: string, enum: [goal_status, policy_candidate] }
-        arguments:
-          type: object
-          additionalProperties: false
-          required: [goal_id]
-          properties:
-            goal_id: { $ref: '#/components/schemas/ID' }
+      $ref: '#/components/schemas/NativeAgentGoalTool'
     AgentOperationTool:
-      type: object
-      additionalProperties: false
-      required: [name, arguments]
-      properties:
-        name: { type: string, enum: [operation_status] }
-        arguments:
-          type: object
-          additionalProperties: false
-          required: [operation_id]
-          properties:
-            operation_id: { $ref: '#/components/schemas/ID' }
+      $ref: '#/components/schemas/NativeAgentOperationTool'
     AgentReference:
-      type: object
-      additionalProperties: false
-      required: [kind, id, digest]
-      properties:
-        kind: { type: string, enum: [ACCOUNT, GOAL, POLICY, GRANT, OPERATION, ACCOUNTS, RULES] }
-        id: { $ref: '#/components/schemas/ID' }
-        digest: { $ref: '#/components/schemas/Digest' }
-      description: SHA-256 of a closed current server projection. Collection IDs name the scoped user. This is display provenance, never execution authority.
+      $ref: '#/components/schemas/NativeAgentReference'
     AgentCandidate:
-      type: object
-      additionalProperties: false
-      required: [template, goal_id, reference, requires_user_fields, bank_authority]
-      properties:
-        template: { type: string, enum: [SINGLE_GOAL] }
-        goal_id: { $ref: '#/components/schemas/ID' }
-        reference: { $ref: '#/components/schemas/AgentReference' }
-        requires_user_fields: { type: boolean, enum: [true] }
-        bank_authority: { type: boolean, enum: [false] }
-      description: Navigates to the existing USER form. No model-provided amount, grant, confirmation, payment or prechecked consent exists.
+      $ref: '#/components/schemas/NativeAgentCandidate'
     AgentPolicyView:
-      type: object
-      additionalProperties: false
-      required: [id, goal_id, version, status, max_amount, valid_until]
-      properties:
-        id: { $ref: '#/components/schemas/ID' }
-        goal_id: { $ref: '#/components/schemas/ID' }
-        version: { $ref: '#/components/schemas/Version' }
-        status: { type: string, enum: [ACTIVE, PAUSED, REVOKED, EXPIRED] }
-        max_amount: { $ref: '#/components/schemas/Money' }
-        valid_until: { $ref: '#/components/schemas/Timestamp' }
+      $ref: '#/components/schemas/NativeAgentPolicy'
     AgentGrantView:
-      type: object
-      additionalProperties: false
-      required: [id, policy_id, status, max_amount, valid_until]
-      properties:
-        id: { $ref: '#/components/schemas/ID' }
-        policy_id: { $ref: '#/components/schemas/ID' }
-        status: { type: string, enum: [ACTIVE, PAUSED, REVOKED, EXPIRED] }
-        max_amount: { $ref: '#/components/schemas/Money' }
-        valid_until: { $ref: '#/components/schemas/Timestamp' }
+      $ref: '#/components/schemas/NativeAgentGrant'
     AgentOperationView:
-      type: object
-      additionalProperties: false
-      required: [id, plan_id, state, amount_cents, version, processing_health]
-      properties:
-        id: { $ref: '#/components/schemas/ID' }
-        plan_id: { $ref: '#/components/schemas/ID' }
-        state: { $ref: '#/components/schemas/OperationState' }
-        amount_cents: { $ref: '#/components/schemas/Money' }
-        version: { $ref: '#/components/schemas/Version' }
-        receipt_id: { $ref: '#/components/schemas/ID' }
-        bank_observed_status: { type: string, maxLength: 64 }
-        processing_health: { type: string, maxLength: 64 }
+      $ref: '#/components/schemas/NativeAgentOperation'
     AgentObservation:
-      type: object
-      additionalProperties: false
-      required: [tool, as_of, summary, verification_scope, references]
-      properties:
-        tool: { type: string, enum: [funds_summary, current_rules, goal_status, operation_status, policy_candidate] }
-        as_of: { $ref: '#/components/schemas/Timestamp' }
-        summary: { type: string, maxLength: 2000 }
-        verification_scope: { type: string, enum: [DISPLAY_SNAPSHOT] }
-        references: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/AgentReference' } }
-        accounts: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Account' } }
-        goals: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/Goal' } }
-        policies: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AgentPolicyView' } }
-        grants: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/AgentGrantView' } }
-        operations: { type: array, maxItems: 20, items: { $ref: '#/components/schemas/AgentOperationView' } }
-        candidate: { $ref: '#/components/schemas/AgentCandidate' }
+      $ref: '#/components/schemas/NativeAgentObservation'
     AgentBudget:
-      type: object
-      additionalProperties: false
-      required: [provider_calls, tool_calls, reserved_tokens, reserved_cost_micros]
-      properties:
-        provider_calls: { type: integer, minimum: 0, maximum: 8 }
-        tool_calls: { type: integer, minimum: 0, maximum: 8 }
-        reserved_tokens: { type: integer, format: int64, minimum: 0, maximum: 1000000 }
-        reserved_cost_micros: { type: integer, format: int64, minimum: 0, maximum: 1000000000 }
-      description: Worst-case reservation is charged before each provider call and never refunded based on self-reported usage. Real provider pricing and token transport bounds require separate verification.
+      $ref: '#/components/schemas/NativeAgentBudget'
     AgentResult:
-      type: object
-      additionalProperties: false
-      required: [mode, provider_status, model_used, observations, references, budget, provider_usage, authority]
-      properties:
-        mode: { type: string, enum: [OFFLINE, MODEL] }
-        provider_status: { type: string, enum: [NOT_RUN, CALLED] }
-        model_used: { type: boolean }
-        observations: { type: array, maxItems: 8, items: { $ref: '#/components/schemas/AgentObservation' } }
-        candidate: { $ref: '#/components/schemas/AgentCandidate' }
-        references: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/AgentReference' } }
-        budget: { $ref: '#/components/schemas/AgentBudget' }
-        provider_usage: { $ref: '#/components/schemas/AgentProviderUsage' }
-        authority: { type: boolean, enum: [false] }
+      $ref: '#/components/schemas/NativeAgentResult'
     AgentProviderUsage:
-      type: object
-      additionalProperties: false
-      required: [input_tokens, output_tokens, reported_calls]
-      properties:
-        input_tokens: { type: integer, format: int64, minimum: 0, maximum: 1000000 }
-        output_tokens: { type: integer, format: int64, minimum: 0, maximum: 1000000 }
-        reported_calls: { type: integer, minimum: 0, maximum: 8 }
-      description: Aggregate valid provider-reported usage, separate from worst-case Budget reservations. This is not independent invoice verification. OFFLINE reports zero calls and tokens.
+      $ref: '#/components/schemas/NativeAgentProviderUsage'
     ApiError:
       type: object
       additionalProperties: false
@@ -2872,6 +2775,1669 @@ components:
       - Available
       - Reserved
       type: object
+    NativeAgentAccount:
+      additionalProperties: false
+      properties:
+        balance_cents:
+          $ref: '#/components/schemas/Money'
+        goal_owned_cents:
+          $ref: '#/components/schemas/Money'
+        id:
+          $ref: '#/components/schemas/ID'
+        name:
+          maxLength: 256
+          type: string
+          x-max-utf8-bytes: 256
+      required:
+      - id
+      - name
+      - balance_cents
+      - goal_owned_cents
+      type: object
+    NativeAgentBudget:
+      additionalProperties: false
+      properties:
+        provider_calls:
+          maximum: 8
+          minimum: 0
+          type: integer
+        reserved_cost_micros:
+          format: int64
+          maximum: 1000000000
+          minimum: 0
+          type: integer
+        reserved_tokens:
+          format: int64
+          maximum: 1000000
+          minimum: 0
+          type: integer
+        tool_calls:
+          maximum: 8
+          minimum: 0
+          type: integer
+      required:
+      - provider_calls
+      - tool_calls
+      - reserved_tokens
+      - reserved_cost_micros
+      type: object
+    NativeAgentCandidate:
+      additionalProperties: false
+      properties:
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        goal_id:
+          $ref: '#/components/schemas/ID'
+        reference:
+          $ref: '#/components/schemas/NativeAgentReference'
+        requires_user_fields:
+          enum:
+          - true
+          type: boolean
+        template:
+          enum:
+          - SINGLE_GOAL
+          type: string
+      required:
+      - template
+      - goal_id
+      - reference
+      - requires_user_fields
+      - bank_authority
+      type: object
+    NativeAgentEmptyTool:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - funds_summary
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - current_rules
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      x-go-type: json.RawMessage
+    NativeAgentError:
+      allOf:
+      - $ref: '#/components/schemas/ApiError'
+      - properties:
+          code:
+            enum:
+            - AGENT_UNAVAILABLE
+            - AGENT_INVALID_INPUT
+            - AGENT_STALE_REFERENCE
+            - AGENT_BUDGET_EXCEEDED
+            - AGENT_PROVIDER_NOT_CONFIGURED
+            - AGENT_TIMEOUT
+            type: string
+          details:
+            $ref: '#/components/schemas/NativeAgentFailureDetails'
+          retry_class:
+            enum:
+            - USE_OFFLINE
+            - NEVER
+            - AFTER_REFRESH
+            type: string
+    NativeAgentFailureDetails:
+      additionalProperties: false
+      description: Finite safe failure stage and validated counters only. No raw error,
+        SQL, provider body, object IDs, connection values or secret. Reserved calls do
+        not prove requests arrived; missing usage remains unknown, not free.
+      properties:
+        failure_protocol:
+          enum:
+          - zhiyu-agent-failure-v1
+          type: string
+        failure_reason:
+          enum:
+          - REJECTED
+          - RESERVE_CONFIGURATION
+          - RESERVE_INPUT_BYTES
+          - RESERVE_CALLS
+          - RESERVE_TOKENS
+          - RESERVE_COST
+          - TOOL_CALLS
+          - REPORTED_USAGE
+          type: string
+        failure_stage:
+          enum:
+          - BODY_DECODE
+          - TURN_DECODE
+          - SNAPSHOT_READ
+          - SNAPSHOT_VALIDATE
+          - INPUT_ENCODE
+          - RESERVE
+          - PROVIDER_CONFIGURATION
+          - PROVIDER
+          - PROVIDER_REPLY_SCHEMA
+          - PROVIDER_USAGE
+          - PROVIDER_ENVELOPE
+          - PROVIDER_HTTP_STATUS
+          - PROVIDER_RESPONSE
+          - USAGE
+          - REPLY_DECODE
+          - MODEL_TOOL_SCOPE
+          - DONE_WITHOUT_OBSERVATION
+          - REPEAT_TOOL
+          - TOOL_REFERENCE
+          - TOOL_LIMIT
+          - OBSERVE
+          - OBSERVATION_SIZE
+          - CONTEXT
+          - FRESH_SNAPSHOT
+          - FRESH_REFERENCES
+          - FINAL_SIZE
+          - UNKNOWN
+          type: string
+        provider_calls_reserved:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+        reserved_cost_micros:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+        reserved_tokens:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+        tool_calls_consumed:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+        usage_scope:
+          enum:
+          - PARTIAL_UNKNOWN_ATTEMPTS_NOT_INVOICE
+          - NO_PROVIDER_RESERVATIONS
+          - VALIDATED_RETURNED_REPLIES_ONLY_NOT_INVOICE
+          type: string
+        validated_input_tokens:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+        validated_output_tokens:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+        validated_reported_calls:
+          maxLength: 19
+          pattern: ^(0|[1-9][0-9]*)$
+          type: string
+      required:
+      - failure_protocol
+      - failure_stage
+      - failure_reason
+      - provider_calls_reserved
+      - tool_calls_consumed
+      - reserved_tokens
+      - reserved_cost_micros
+      - validated_input_tokens
+      - validated_output_tokens
+      - validated_reported_calls
+      - usage_scope
+      type: object
+    NativeAgentForecastObservation:
+      additionalProperties: false
+      properties:
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        reasons:
+          items:
+            type: string
+          type: array
+        result:
+          allOf:
+          - $ref: '#/components/schemas/NativePlanningForecastResult'
+          nullable: true
+        state:
+          enum:
+          - INCOMPLETE
+          - READY
+          - PROTECTION_DEFICIT
+          type: string
+      required:
+      - state
+      - reasons
+      - bank_authority
+      type: object
+    NativeAgentGoal:
+      additionalProperties: false
+      properties:
+        account_id:
+          $ref: '#/components/schemas/ID'
+        assigned_cents:
+          $ref: '#/components/schemas/Money'
+        id:
+          $ref: '#/components/schemas/ID'
+        name:
+          maxLength: 256
+          type: string
+          x-max-utf8-bytes: 256
+        target_cents:
+          $ref: '#/components/schemas/Money'
+      required:
+      - id
+      - name
+      - account_id
+      - target_cents
+      - assigned_cents
+      type: object
+    NativeAgentGoalTool:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              goal_id:
+                format: uuid
+                type: string
+            required:
+            - goal_id
+            type: object
+          name:
+            enum:
+            - goal_status
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              goal_id:
+                format: uuid
+                type: string
+            required:
+            - goal_id
+            type: object
+          name:
+            enum:
+            - policy_candidate
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      x-go-type: json.RawMessage
+    NativeAgentGrant:
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/ID'
+        max_amount:
+          $ref: '#/components/schemas/Money'
+        policy_id:
+          $ref: '#/components/schemas/ID'
+        status:
+          enum:
+          - ACTIVE
+          - PAUSED
+          - REVOKED
+          - EXPIRED
+          type: string
+        valid_until:
+          $ref: '#/components/schemas/Timestamp'
+      required:
+      - id
+      - policy_id
+      - status
+      - max_amount
+      - valid_until
+      type: object
+    NativeAgentGrantCap:
+      description: Positive integer cents at most funds.MaxMoneyCents (9000000000000000);
+        reviewed limit, never executable cash.
+      pattern: ^([1-8][0-9]{0,15}|[1-9][0-9]{0,14}|9000000000000000)$
+      type: string
+    NativeAgentGrantReason:
+      enum:
+      - CAPACITY
+      - SCHEMA_UNAVAILABLE
+      - EVIDENCE_INVALID
+      - SUBJECT_UNAVAILABLE
+      - SESSION_EXPIRED_AT_EVENT
+      - SESSION_REVOCATION_HISTORY_UNAVAILABLE
+      - POLICY_CHANGED
+      - POLICY_UNAVAILABLE
+      - NOT_YET_EFFECTIVE
+      - EXPIRED
+      - PAUSED
+      - REVOKED
+      type: string
+    NativeAgentJointObservation:
+      additionalProperties: false
+      properties:
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        mode:
+          enum:
+          - READ_ONLY_NOT_EXECUTABLE
+          type: string
+        reasons:
+          items:
+            type: string
+          type: array
+        result:
+          allOf:
+          - $ref: '#/components/schemas/NativePlanningJointPlan'
+          nullable: true
+        state:
+          enum:
+          - INCOMPLETE
+          - UNKNOWN
+          - INFEASIBLE
+          - OPTIMAL
+          type: string
+      required:
+      - mode
+      - state
+      - reasons
+      - bank_authority
+      type: object
+    NativeAgentModelCandidate:
+      additionalProperties: false
+      properties:
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        goal_id:
+          $ref: '#/components/schemas/ID'
+        reference:
+          $ref: '#/components/schemas/NativeAgentModelReference'
+        requires_user_fields:
+          enum:
+          - true
+          type: boolean
+        template:
+          enum:
+          - SINGLE_GOAL
+          type: string
+      required:
+      - template
+      - goal_id
+      - reference
+      - requires_user_fields
+      - bank_authority
+      type: object
+    NativeAgentModelObservation:
+      additionalProperties: false
+      properties:
+        accounts:
+          items:
+            $ref: '#/components/schemas/NativeAgentAccount'
+          maxItems: 100
+          type: array
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        candidate:
+          $ref: '#/components/schemas/NativeAgentModelCandidate'
+        catalog:
+          items:
+            $ref: '#/components/schemas/NativeAgentTemplateDescriptor'
+          maxItems: 12
+          type: array
+        forecast:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentForecastObservation'
+          nullable: true
+        goals:
+          items:
+            $ref: '#/components/schemas/NativeAgentGoal'
+          maxItems: 100
+          type: array
+        grants:
+          items:
+            $ref: '#/components/schemas/NativeAgentGrant'
+          maxItems: 100
+          type: array
+        joint:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentJointObservation'
+          nullable: true
+        native_candidate:
+          $ref: '#/components/schemas/NativeAgentModelTemplateCandidate'
+        native_rules:
+          items:
+            $ref: '#/components/schemas/NativeAgentNativeRule'
+          maxItems: 100
+          type: array
+        object:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentObjectObservation'
+          nullable: true
+        objects:
+          items:
+            $ref: '#/components/schemas/NativeAgentObjectObservation'
+          maxItems: 100
+          type: array
+        operations:
+          items:
+            $ref: '#/components/schemas/NativeAgentOperation'
+          maxItems: 20
+          type: array
+        policies:
+          items:
+            $ref: '#/components/schemas/NativeAgentPolicy'
+          maxItems: 100
+          type: array
+        references:
+          items:
+            $ref: '#/components/schemas/NativeAgentModelReference'
+          maxItems: 1000
+          type: array
+        summary:
+          type: string
+        tool:
+          enum:
+          - funds_summary
+          - current_rules
+          - goal_status
+          - operation_status
+          - policy_candidate
+          - original_objects
+          - template_catalog
+          - native_rules
+          - forecast365
+          - joint_preview
+          - object_status
+          - template_candidate
+          type: string
+        verification_scope:
+          enum:
+          - DISPLAY_SNAPSHOT
+          type: string
+      required:
+      - tool
+      - as_of
+      - summary
+      - verification_scope
+      - references
+      type: object
+    NativeAgentModelReference:
+      additionalProperties: false
+      properties:
+        digest:
+          $ref: '#/components/schemas/Digest'
+        id:
+          $ref: '#/components/schemas/ID'
+        kind:
+          enum:
+          - ACCOUNT
+          - GOAL
+          - POLICY
+          - GRANT
+          - OPERATION
+          - ACCOUNTS
+          - RULES
+          - NATIVE_CONTEXT
+          - NATIVE_POLICY
+          - NATIVE_VERSION
+          - NATIVE_PLAN
+          - NATIVE_OPERATION
+          - NATIVE_POSITION
+          - NATIVE_QUESTION
+          - NATIVE_PAYEE
+          type: string
+      required:
+      - kind
+      - id
+      - digest
+      type: object
+    NativeAgentModelTemplateCandidate:
+      additionalProperties: false
+      properties:
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        compiled:
+          $ref: '#/components/schemas/NativePolicyCompiledTemplate'
+        forecast:
+          allOf:
+          - $ref: '#/components/schemas/NativePlanningForecastResult'
+          nullable: true
+        goal_id:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          nullable: true
+        mode:
+          enum:
+          - IF_USER_CONFIRMED
+          type: string
+        policy_id:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          nullable: true
+        preview:
+          allOf:
+          - $ref: '#/components/schemas/NativePolicyTemplatePreview'
+          nullable: true
+        reasons:
+          items:
+            type: string
+          type: array
+        reference:
+          $ref: '#/components/schemas/NativeAgentModelReference'
+        requires_user_confirmation:
+          enum:
+          - true
+          type: boolean
+        state:
+          enum:
+          - INCOMPLETE
+          - CONFIRMED
+          - READY
+          - OUT_OF_AUTHORIZATION
+          - NO_ACTION
+          - MINIMUM_SHORTFALL
+          - CONSTRAINTS_READY
+          - FLOOR_RELEASED
+          - ADVICE_ONLY
+          - SILENT_STABLE_OR_DEDUPLICATED
+          - USER_QUESTION_REQUIRED
+          - COMPLETE
+          - MONTHLY_MAX_ALREADY_EXCEEDED
+          - HARD_GUARANTEE_SHORTFALL
+          - DEADLINE_BLOCKED
+          - PARTIAL
+          - OVERDUE_READY
+          type: string
+      required:
+      - mode
+      - compiled
+      - reference
+      - state
+      - reasons
+      - requires_user_confirmation
+      - bank_authority
+      type: object
+    NativeAgentModelTurn:
+      additionalProperties: false
+      properties:
+        mode:
+          enum:
+          - MODEL
+          type: string
+        text:
+          maxLength: 4096
+          minLength: 1
+          type: string
+          x-max-utf8-bytes: 4096
+      required:
+      - mode
+      - text
+      type: object
+    NativeAgentNativeGrantCollection:
+      additionalProperties: false
+      description: OFFLINE only. COMPLETE count equals all sorted owned items; UNAVAILABLE
+        omits count, never reports unknown as zero. Historical session scope is explicit
+        and is not current execution authority.
+      oneOf:
+      - properties:
+          reason_codes:
+            maxItems: 0
+          session_verification:
+            enum:
+            - SCOPED_SUBJECT_AND_EVENT_EXPIRY_ONLY
+            - HISTORY_INCOMPLETE
+            type: string
+          status:
+            enum:
+            - COMPLETE
+            type: string
+          verification_scope:
+            enum:
+            - OWNED_ORIGINALS_AND_COMPLETE_GRANT_STATE_CHAIN
+            type: string
+        required:
+        - count
+      - not:
+          required:
+          - count
+        properties:
+          items:
+            maxItems: 0
+          reason_codes:
+            minItems: 1
+          session_verification:
+            enum:
+            - NOT_VERIFIED
+            type: string
+          status:
+            enum:
+            - UNAVAILABLE
+            type: string
+          verification_scope:
+            enum:
+            - NOT_VERIFIED
+            type: string
+      properties:
+        authority:
+          enum:
+          - false
+          type: boolean
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        collection_digest:
+          $ref: '#/components/schemas/Digest'
+        count:
+          maximum: 100
+          minimum: 0
+          type: integer
+        items:
+          items:
+            $ref: '#/components/schemas/NativeAgentNativeGrantDisplay'
+          maxItems: 100
+          type: array
+        protocol:
+          enum:
+          - zhiyu-agent-native-grants-v1
+          type: string
+        reason_codes:
+          items:
+            $ref: '#/components/schemas/NativeAgentGrantReason'
+          maxItems: 13
+          type: array
+        session_verification:
+          enum:
+          - SCOPED_SUBJECT_AND_EVENT_EXPIRY_ONLY
+          - HISTORY_INCOMPLETE
+          - NOT_VERIFIED
+          type: string
+        status:
+          enum:
+          - COMPLETE
+          - UNAVAILABLE
+          type: string
+        verification_scope:
+          enum:
+          - OWNED_ORIGINALS_AND_COMPLETE_GRANT_STATE_CHAIN
+          - NOT_VERIFIED
+          type: string
+      required:
+      - protocol
+      - status
+      - items
+      - reason_codes
+      - collection_digest
+      - verification_scope
+      - session_verification
+      - authority
+      - bank_authority
+      type: object
+      x-max-json-bytes: 524288
+    NativeAgentNativeGrantDisplay:
+      additionalProperties: false
+      description: OFFLINE only. Original caps and complete lifecycle display, not authority.
+        Sorted unique lists, family policy/scope, cap ordering, same-state reasons, expiry/day
+        and original chain are checked by the domain; schema validation does not replace
+        those checks. No session, grant raw bytes, signature or executable budget is exposed.
+      properties:
+        account_ids:
+          items:
+            $ref: '#/components/schemas/ID'
+          maxItems: 16
+          minItems: 1
+          type: array
+          uniqueItems: true
+        authority:
+          enum:
+          - false
+          type: boolean
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        chain_digest:
+          $ref: '#/components/schemas/Digest'
+        effective_from:
+          $ref: '#/components/schemas/Timestamp'
+        effective_state:
+          enum:
+          - REVOKED
+          - EXPIRED
+          - PAUSED
+          - NOT_YET_EFFECTIVE
+          - POLICY_CHANGED
+          - UNAVAILABLE
+          - CURRENT_DISPLAY_ONLY
+          type: string
+        evaluated_local_date:
+          format: date
+          type: string
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        family:
+          enum:
+          - SINGLE_GOAL
+          - JOINT_GOALS
+          - ASSET_ALLOCATION
+          - MATURITY_REINVEST
+          - PERIODIC_PAYMENT
+          type: string
+        goal_ids:
+          items:
+            $ref: '#/components/schemas/ID'
+          maxItems: 8
+          type: array
+          uniqueItems: true
+        id:
+          $ref: '#/components/schemas/ID'
+        lifetime_cap_cents:
+          $ref: '#/components/schemas/NativeAgentGrantCap'
+        monthly_cap_cents:
+          $ref: '#/components/schemas/NativeAgentGrantCap'
+        original_digest:
+          $ref: '#/components/schemas/Digest'
+        payee_ids:
+          items:
+            pattern: ^[A-Za-z0-9_.:-]{1,128}$
+            type: string
+          maxItems: 1
+          type: array
+          uniqueItems: true
+        policy_references:
+          items:
+            $ref: '#/components/schemas/NativePolicyNativePolicyReference'
+          maxItems: 16
+          minItems: 1
+          type: array
+        product_ids:
+          items:
+            pattern: ^[A-Za-z0-9_.:-]{1,128}$
+            type: string
+          maxItems: 100
+          type: array
+          uniqueItems: true
+        reason_codes:
+          items:
+            $ref: '#/components/schemas/NativeAgentGrantReason'
+          maxItems: 13
+          type: array
+          uniqueItems: true
+        recorded_state:
+          enum:
+          - ACTIVE
+          - PAUSED
+          - REVOKED
+          type: string
+        single_cap_cents:
+          $ref: '#/components/schemas/NativeAgentGrantCap'
+        state_at:
+          $ref: '#/components/schemas/Timestamp'
+        state_sequence:
+          maximum: 256
+          minimum: 1
+          type: integer
+        terms_digest:
+          $ref: '#/components/schemas/Digest'
+        timezone:
+          type: string
+        version:
+          enum:
+          - 1
+          type: integer
+      required:
+      - id
+      - version
+      - family
+      - recorded_state
+      - effective_state
+      - state_sequence
+      - state_at
+      - effective_from
+      - expires_at
+      - evaluated_local_date
+      - timezone
+      - policy_references
+      - account_ids
+      - goal_ids
+      - product_ids
+      - payee_ids
+      - single_cap_cents
+      - lifetime_cap_cents
+      - monthly_cap_cents
+      - original_digest
+      - terms_digest
+      - chain_digest
+      - reason_codes
+      - authority
+      - bank_authority
+      type: object
+      x-max-json-bytes: 32768
+    NativeAgentNativeRule:
+      additionalProperties: false
+      properties:
+        effective_state:
+          enum:
+          - ACTIVE
+          - CONFIRMED
+          - CONFIRMATION_IN_FUTURE
+          - SUSPENDED
+          - REVOKED
+          - EXPIRED
+          type: string
+        goal_id:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          nullable: true
+        timezone:
+          type: string
+        version:
+          $ref: '#/components/schemas/NativePolicyTemplateVersion'
+      required:
+      - version
+      - timezone
+      - effective_state
+      type: object
+    NativeAgentObjectObservation:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: true
+          type: object
+        id:
+          $ref: '#/components/schemas/ID'
+        kind:
+          enum:
+          - ACCOUNT
+          - GOAL
+          - POLICY
+          - GRANT
+          - OPERATION
+          - NATIVE_POLICY
+          - NATIVE_VERSION
+          - NATIVE_PLAN
+          - NATIVE_OPERATION
+          - NATIVE_POSITION
+          - NATIVE_QUESTION
+          - NATIVE_PAYEE
+          type: string
+      required:
+      - kind
+      - id
+      - data
+      type: object
+    NativeAgentObservation:
+      additionalProperties: false
+      properties:
+        accounts:
+          items:
+            $ref: '#/components/schemas/NativeAgentAccount'
+          maxItems: 100
+          type: array
+        as_of:
+          $ref: '#/components/schemas/Timestamp'
+        candidate:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentCandidate'
+          nullable: true
+        catalog:
+          items:
+            $ref: '#/components/schemas/NativeAgentTemplateDescriptor'
+          maxItems: 12
+          type: array
+        forecast:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentForecastObservation'
+          nullable: true
+        goals:
+          items:
+            $ref: '#/components/schemas/NativeAgentGoal'
+          maxItems: 100
+          type: array
+        grants:
+          items:
+            $ref: '#/components/schemas/NativeAgentGrant'
+          maxItems: 100
+          type: array
+        joint:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentJointObservation'
+          nullable: true
+        native_candidate:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentTemplateCandidate'
+          nullable: true
+        native_grant:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentNativeGrantDisplay'
+          nullable: true
+        native_grants:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentNativeGrantCollection'
+          nullable: true
+        native_rules:
+          items:
+            $ref: '#/components/schemas/NativeAgentNativeRule'
+          maxItems: 100
+          type: array
+        object:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentObjectObservation'
+          nullable: true
+        objects:
+          items:
+            $ref: '#/components/schemas/NativeAgentObjectObservation'
+          maxItems: 100
+          type: array
+        operations:
+          items:
+            $ref: '#/components/schemas/NativeAgentOperation'
+          maxItems: 20
+          type: array
+        policies:
+          items:
+            $ref: '#/components/schemas/NativeAgentPolicy'
+          maxItems: 100
+          type: array
+        references:
+          items:
+            $ref: '#/components/schemas/NativeAgentReference'
+          maxItems: 1000
+          type: array
+        summary:
+          type: string
+        tool:
+          enum:
+          - funds_summary
+          - current_rules
+          - goal_status
+          - operation_status
+          - policy_candidate
+          - native_grants
+          - original_objects
+          - template_catalog
+          - native_rules
+          - forecast365
+          - joint_preview
+          - object_status
+          - template_candidate
+          type: string
+        verification_scope:
+          enum:
+          - DISPLAY_SNAPSHOT
+          type: string
+      required:
+      - tool
+      - as_of
+      - summary
+      - verification_scope
+      - references
+      type: object
+    NativeAgentOfflineTurn:
+      additionalProperties: false
+      properties:
+        mode:
+          enum:
+          - OFFLINE
+          type: string
+        tool:
+          $ref: '#/components/schemas/NativeAgentToolCall'
+      required:
+      - mode
+      - tool
+      type: object
+    NativeAgentOperation:
+      additionalProperties: false
+      properties:
+        amount_cents:
+          $ref: '#/components/schemas/Money'
+        bank_observed_status:
+          maxLength: 64
+          type: string
+        id:
+          $ref: '#/components/schemas/ID'
+        plan_id:
+          $ref: '#/components/schemas/ID'
+        processing_health:
+          maxLength: 64
+          type: string
+        receipt_id:
+          $ref: '#/components/schemas/ID'
+        state:
+          $ref: '#/components/schemas/OperationState'
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - plan_id
+      - state
+      - amount_cents
+      - version
+      - processing_health
+      type: object
+    NativeAgentOperationTool:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              operation_id:
+                format: uuid
+                type: string
+            required:
+            - operation_id
+            type: object
+          name:
+            enum:
+            - operation_status
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      x-go-type: json.RawMessage
+    NativeAgentPolicy:
+      additionalProperties: false
+      properties:
+        goal_id:
+          $ref: '#/components/schemas/ID'
+        id:
+          $ref: '#/components/schemas/ID'
+        max_amount:
+          $ref: '#/components/schemas/Money'
+        status:
+          enum:
+          - ACTIVE
+          - PAUSED
+          - REVOKED
+          - EXPIRED
+          type: string
+        valid_until:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          $ref: '#/components/schemas/Version'
+      required:
+      - id
+      - goal_id
+      - version
+      - status
+      - max_amount
+      - valid_until
+      type: object
+    NativeAgentProviderUsage:
+      additionalProperties: false
+      description: Validated returned replies only, never independent invoice verification.
+        Reserved calls/cost are not refunded for unknown failed attempts.
+      properties:
+        input_tokens:
+          format: int64
+          maximum: 1000000
+          minimum: 0
+          type: integer
+        output_tokens:
+          format: int64
+          maximum: 1000000
+          minimum: 0
+          type: integer
+        reported_calls:
+          format: int64
+          maximum: 8
+          minimum: 0
+          type: integer
+      required:
+      - input_tokens
+      - output_tokens
+      - reported_calls
+      type: object
+    NativeAgentReference:
+      additionalProperties: false
+      properties:
+        digest:
+          $ref: '#/components/schemas/Digest'
+        id:
+          $ref: '#/components/schemas/ID'
+        kind:
+          enum:
+          - ACCOUNT
+          - GOAL
+          - POLICY
+          - GRANT
+          - OPERATION
+          - ACCOUNTS
+          - RULES
+          - NATIVE_CONTEXT
+          - NATIVE_POLICY
+          - NATIVE_VERSION
+          - NATIVE_PLAN
+          - NATIVE_OPERATION
+          - NATIVE_POSITION
+          - NATIVE_QUESTION
+          - NATIVE_PAYEE
+          - NATIVE_GRANT
+          - NATIVE_GRANTS
+          type: string
+      required:
+      - kind
+      - id
+      - digest
+      type: object
+    NativeAgentResult:
+      additionalProperties: false
+      oneOf:
+      - properties:
+          mode:
+            enum:
+            - OFFLINE
+            type: string
+          model_used:
+            enum:
+            - false
+            type: boolean
+          observations:
+            maxItems: 1
+            minItems: 1
+          provider_status:
+            enum:
+            - NOT_RUN
+            type: string
+      - properties:
+          candidate:
+            $ref: '#/components/schemas/NativeAgentModelCandidate'
+          mode:
+            enum:
+            - MODEL
+            type: string
+          model_used:
+            enum:
+            - true
+            type: boolean
+          native_candidate:
+            $ref: '#/components/schemas/NativeAgentModelTemplateCandidate'
+          observations:
+            items:
+              $ref: '#/components/schemas/NativeAgentModelObservation'
+            maxItems: 8
+            minItems: 1
+            type: array
+          provider_status:
+            enum:
+            - CALLED
+            type: string
+          references:
+            items:
+              $ref: '#/components/schemas/NativeAgentModelReference'
+            maxItems: 1000
+            type: array
+      properties:
+        authority:
+          enum:
+          - false
+          type: boolean
+        budget:
+          $ref: '#/components/schemas/NativeAgentBudget'
+        candidate:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentCandidate'
+          nullable: true
+        mode:
+          enum:
+          - OFFLINE
+          - MODEL
+          type: string
+        model_used:
+          type: boolean
+        native_candidate:
+          allOf:
+          - $ref: '#/components/schemas/NativeAgentTemplateCandidate'
+          nullable: true
+        observations:
+          items:
+            $ref: '#/components/schemas/NativeAgentObservation'
+          maxItems: 8
+          type: array
+        provider_status:
+          enum:
+          - NOT_RUN
+          - CALLED
+          type: string
+        provider_usage:
+          $ref: '#/components/schemas/NativeAgentProviderUsage'
+        references:
+          items:
+            $ref: '#/components/schemas/NativeAgentReference'
+          maxItems: 1000
+          type: array
+      required:
+      - mode
+      - provider_status
+      - model_used
+      - observations
+      - references
+      - budget
+      - provider_usage
+      - authority
+      type: object
+      x-max-json-bytes: 2097152
+    NativeAgentStatus:
+      additionalProperties: false
+      oneOf:
+      - properties:
+          mode:
+            enum:
+            - OFFLINE
+            type: string
+          provider_configured:
+            enum:
+            - false
+            type: boolean
+          provider_status:
+            enum:
+            - NOT_RUN
+            type: string
+      - properties:
+          mode:
+            enum:
+            - MODEL_AVAILABLE
+            type: string
+          provider_configured:
+            enum:
+            - true
+            type: boolean
+          provider_status:
+            enum:
+            - CONFIGURED_NOT_VERIFIED
+            type: string
+      properties:
+        authority:
+          enum:
+          - false
+          type: boolean
+        mode:
+          enum:
+          - OFFLINE
+          - MODEL_AVAILABLE
+          type: string
+        provider_configured:
+          type: boolean
+        provider_status:
+          enum:
+          - NOT_RUN
+          - CONFIGURED_NOT_VERIFIED
+          type: string
+      required:
+      - mode
+      - provider_status
+      - provider_configured
+      - authority
+      type: object
+    NativeAgentTemplateCandidate:
+      additionalProperties: false
+      properties:
+        bank_authority:
+          enum:
+          - false
+          type: boolean
+        compiled:
+          $ref: '#/components/schemas/NativePolicyCompiledTemplate'
+        forecast:
+          allOf:
+          - $ref: '#/components/schemas/NativePlanningForecastResult'
+          nullable: true
+        goal_id:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          nullable: true
+        mode:
+          enum:
+          - IF_USER_CONFIRMED
+          type: string
+        policy_id:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          nullable: true
+        preview:
+          allOf:
+          - $ref: '#/components/schemas/NativePolicyTemplatePreview'
+          nullable: true
+        reasons:
+          items:
+            type: string
+          type: array
+        reference:
+          $ref: '#/components/schemas/NativeAgentReference'
+        requires_user_confirmation:
+          enum:
+          - true
+          type: boolean
+        state:
+          enum:
+          - INCOMPLETE
+          - CONFIRMED
+          - READY
+          - OUT_OF_AUTHORIZATION
+          - NO_ACTION
+          - MINIMUM_SHORTFALL
+          - CONSTRAINTS_READY
+          - FLOOR_RELEASED
+          - ADVICE_ONLY
+          - SILENT_STABLE_OR_DEDUPLICATED
+          - USER_QUESTION_REQUIRED
+          - COMPLETE
+          - MONTHLY_MAX_ALREADY_EXCEEDED
+          - HARD_GUARANTEE_SHORTFALL
+          - DEADLINE_BLOCKED
+          - PARTIAL
+          - OVERDUE_READY
+          type: string
+      required:
+      - mode
+      - compiled
+      - reference
+      - state
+      - reasons
+      - requires_user_confirmation
+      - bank_authority
+      type: object
+    NativeAgentTemplateDescriptor:
+      additionalProperties: false
+      properties:
+        example_configuration:
+          $ref: '#/components/schemas/NativeTemplateConfiguration'
+        fields:
+          items:
+            type: string
+          type: array
+        template_name:
+          enum:
+          - RecurringObligationPolicy
+          - LivingReservePolicy
+          - EmergencyBufferPolicy
+          - DatedExpensePolicy
+          - LongTermGoalPolicy
+          - PeriodicTransferPolicy
+          - AssetAuthorizationPolicy
+          - RecoveryPolicy
+          - GoalAllocationPolicy
+          - CrossGoalReallocationPolicy
+          - SeasonalReservePolicy
+          - InterventionPolicy
+          type: string
+      required:
+      - template_name
+      - fields
+      type: object
+    NativeAgentToolCall:
+      oneOf:
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - funds_summary
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - current_rules
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              goal_id:
+                format: uuid
+                type: string
+            required:
+            - goal_id
+            type: object
+          name:
+            enum:
+            - goal_status
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              operation_id:
+                format: uuid
+                type: string
+            required:
+            - operation_id
+            type: object
+          name:
+            enum:
+            - operation_status
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              goal_id:
+                format: uuid
+                type: string
+            required:
+            - goal_id
+            type: object
+          name:
+            enum:
+            - policy_candidate
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - native_grants
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - original_objects
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - template_catalog
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - native_rules
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - forecast365
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties: {}
+            required: []
+            type: object
+          name:
+            enum:
+            - joint_preview
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              reference:
+                $ref: '#/components/schemas/NativeAgentReference'
+            required:
+            - reference
+            type: object
+          name:
+            enum:
+            - object_status
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      - additionalProperties: false
+        properties:
+          arguments:
+            additionalProperties: false
+            properties:
+              configuration:
+                $ref: '#/components/schemas/NativeTemplateConfiguration'
+              goal_id:
+                $ref: '#/components/schemas/ID'
+              policy_id:
+                $ref: '#/components/schemas/ID'
+              template_name:
+                enum:
+                - RecurringObligationPolicy
+                - LivingReservePolicy
+                - EmergencyBufferPolicy
+                - DatedExpensePolicy
+                - LongTermGoalPolicy
+                - PeriodicTransferPolicy
+                - AssetAuthorizationPolicy
+                - RecoveryPolicy
+                - GoalAllocationPolicy
+                - CrossGoalReallocationPolicy
+                - SeasonalReservePolicy
+                - InterventionPolicy
+                type: string
+            required:
+            - template_name
+            - configuration
+            type: object
+          name:
+            enum:
+            - template_candidate
+            type: string
+        required:
+        - name
+        - arguments
+        type: object
+      x-go-type: json.RawMessage
+    NativeAgentTurn:
+      description: Authenticated scope only. OFFLINE has exactly one registered closed
+        tool; MODEL has only bounded text. No USER authority is accepted. Native grant
+        tools/references/data are OFFLINE-only and never sent to a provider.
+      oneOf:
+      - $ref: '#/components/schemas/NativeAgentOfflineTurn'
+      - $ref: '#/components/schemas/NativeAgentModelTurn'
+      x-go-type: json.RawMessage
+      x-max-utf8-bytes: 8192
     NativeAppActivity:
       additionalProperties: false
       properties:
@@ -5094,6 +6660,10 @@ components:
           type: string
         forecast:
           $ref: '#/components/schemas/NativePlanningForecastResult'
+        forecast_input:
+          allOf:
+          - $ref: '#/components/schemas/NativePlanningForecastInput'
+          nullable: true
         goal_id:
           allOf:
           - $ref: '#/components/schemas/ID'
@@ -5110,8 +6680,22 @@ components:
           type: string
         scope:
           $ref: '#/components/schemas/NativePolicyTemplateOwnerScope'
+        snapshot_funds_version:
+          format: int64
+          minimum: 0
+          type: integer
+        snapshot_source_version:
+          format: int64
+          minimum: 0
+          type: integer
         source_hash:
           type: string
+        source_witness_hash:
+          type: string
+        source_witness_id:
+          allOf:
+          - $ref: '#/components/schemas/ID'
+          nullable: true
         target_mutation:
           allOf:
           - $ref: '#/components/schemas/NativeAppTemplateGoalTargetMutation'

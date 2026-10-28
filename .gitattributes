@@ -1,1 +1,5 @@
-* text=auto eol=lf
+# Keep the hashes of recorded files stable across Windows and Linux checkouts.
+* -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# Captured output is evidence; preserve its original whitespace and line endings.
+docs/progress/** whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol
+testdata/** whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol

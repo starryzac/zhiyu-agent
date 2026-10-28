@@ -123,6 +123,9 @@ func (s *Service) nativeObservation(ctx context.Context, c Claim, request bankv2
 		if err = s.Store.PersistNativeLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); err != nil {
 			return err
 		}
+		if err = s.recordNativeRejection(ctx, tx, p, c.OperationID, result); err != nil {
+			return err
+		}
 		if _, err = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); err != nil {
 			return err
 		}

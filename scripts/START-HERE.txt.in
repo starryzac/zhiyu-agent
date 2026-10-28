@@ -1,0 +1,181 @@
+Zhiyu local first start
+
+Created configuration, not installed or ACTIVE.
+This new environment: __ENV__
+Namespace: __NS__
+Seed environment ID: __EID__
+One operator owner ID: __OWNER__
+Loopback ports: PostgreSQL __PG_PORT__, API __API_PORT__, bank __BANK_PORT__.
+Never overwrite an old database, runtime, namespace or writer pin.
+Templates with null fields / false proof flags are intentionally NOT executable.
+No login secret or database password is printed here.
+Before writing a command result or an actual request, confirm the destination
+file does not exist. On retry keep the old originals and select a fresh suffix.
+Do not overwrite an earlier ARM/READ/HANDOFF/SCAN/ACTIVATE response or proof.
+
+A. New cluster and zero opening
+
+Follow README's new Docker Desktop Linux container section. Use ONLY the new
+container/volume/image in local-install.json and this postgres.env. Confirm
+image, CID, labels, volume and loopback mapping; old resources must not exist.
+Use the local Docker engine explicitly. Do not execute these SQL files against
+an existing cluster. Do not delete an old volume to make initialization pass.
+
+In PowerShell 7 (replace nothing in these generated path assignments):
+$Root = '__ROOT_PS__'
+$R = '__RUNTIME_PS__'
+Set-Location -LiteralPath $Root
+$ZhiyuExe = Join-Path $Root 'bin/zhiyu.exe'
+$BankExe = Join-Path $Root 'bin/banksim.exe'
+$StartRole = Join-Path $Root 'scripts/Start-LocalRole.ps1'
+$Install = Get-Content -LiteralPath (Join-Path $R 'local-install.json') -Raw | ConvertFrom-Json
+$AppConfig = Join-Path $R 'app-runtime.json'
+
+Wait for the new PG to be ready. Run new-cluster-only.sql through stdin with
+psql -X -v ON_ERROR_STOP=1 as zygo_install_admin on postgres, ONLY new CID.
+Then migrate the application:
+& $ZhiyuExe migrate -config (Join-Path $R 'migration-runtime.json')
+# Stop if native command exit is nonzero.
+
+First bank process, its own foreground terminal:
+& $StartRole -Root $Root -Role bank -InitializeBank
+# Leave it running. Record its real native PID / creation time / executable.
+
+Another terminal, the same Root/R assignments:
+& $ZhiyuExe seed -config (Join-Path $R 'seed-runtime.json')
+# Only app zero seed is created. This does NOT initialize bank accounts.
+# Stop on failure; never repeat a partial initialization blindly.
+
+Run bank-zero-only.sql through stdin with psql -X -w -v ON_ERROR_STOP=1 as
+zygo_bank on __ENV___bank, ONLY the same newly verified CID. Expect ZERO_BANK_READY,
+one account/one goal and balance_cents 0. No funds, policy or standing authority
+is created. Do not feed passwords/DSN as process arguments.
+
+B. Establish the single operator owner through the normal CLI
+
+No writer-pin.json exists yet. A fresh missing control is a compatibility state,
+not an ACTIVE fenced writer. Never manufacture a control row directly in SQL.
+Read first:
+& $ZhiyuExe recovery-control -config $AppConfig -recovery-request (Join-Path $R 'owner-read.json')
+
+Only the exact WRITER_CONTROL_MISSING result permits the first ARM below.
+If a control already exists, stop and inspect; never initial-ARM it again.
+& $ZhiyuExe recovery-control -config $AppConfig -recovery-request (Join-Path $R 'owner-arm.json') | Tee-Object -LiteralPath (Join-Path $R 'owner-arm-result.json')
+if ($LASTEXITCODE -ne 0) { throw 'ARM failed; retain original output.' }
+$ArmControl = Get-Content -LiteralPath (Join-Path $R 'owner-arm-result.json') -Raw | ConvertFrom-Json
+if ($ArmControl.owner_id -ne $Install.owner_id -or $ArmControl.environment_id -ne $Install.environment_id -or $ArmControl.mode -ne 'READ_ONLY' -or $ArmControl.generation -lt 1) { throw 'Unexpected ARM result; do not adopt it.' }
+$WriterPin = Get-Content -LiteralPath (Join-Path $R 'writer-pin.template.json') -Raw | ConvertFrom-Json
+$WriterPin.generation = $ArmControl.generation
+$WriterPin | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $R 'writer-pin.json') -Encoding utf8NoBOM
+
+The fixed helper holds the native handle and writes START.json/EXIT.json under
+.runtime/processes/<fresh-role-run>. It only starts this Root's known bin/config;
+it accepts no arbitrary PID or executable, never kills or forwards extra signals.
+In separate foreground terminals (same Root/StartRole assignments), start:
+& $StartRole -Root $Root -Role api -Bootstrap
+& $StartRole -Root $Root -Role worker -Bootstrap
+# These plus the initial bank are three real processes. Normal Ctrl+C is later
+# delivered in each role's own console; keep the helper until true native exit.
+
+Now fresh READ using the same actual pin:
+& $ZhiyuExe recovery-control -config $AppConfig -recovery-request (Join-Path $R 'owner-read.json') | Tee-Object -LiteralPath (Join-Path $R 'owner-before-handoff.json')
+if ($LASTEXITCODE -ne 0) { throw 'READ failed; do not hand off.' }
+$CurrentControl = Get-Content -LiteralPath (Join-Path $R 'owner-before-handoff.json') -Raw | ConvertFrom-Json
+if ($CurrentControl.owner_id -ne $Install.owner_id -or $CurrentControl.environment_id -ne $Install.environment_id -or $CurrentControl.mode -ne 'READ_ONLY' -or $CurrentControl.generation -ne $WriterPin.generation) { throw 'Control differs; do not adopt another owner.' }
+$HandoffRequest = Get-Content -LiteralPath (Join-Path $R 'owner-handoff.template.json') -Raw | ConvertFrom-Json
+$HandoffRequest.expected = $CurrentControl
+$HandoffRequest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $R 'owner-handoff.json') -Encoding utf8NoBOM
+& $ZhiyuExe recovery-control -config $AppConfig -recovery-request (Join-Path $R 'owner-handoff.json') | Tee-Object -LiteralPath (Join-Path $R 'owner-handoff-result.json')
+if ($LASTEXITCODE -ne 0) { throw 'HANDOFF failed; retain state.' }
+$HandoffControl = Get-Content -LiteralPath (Join-Path $R 'owner-handoff-result.json') -Raw | ConvertFrom-Json
+if ($HandoffControl.owner_id -ne $Install.owner_id -or $HandoffControl.environment_id -ne $Install.environment_id -or $HandoffControl.mode -ne 'RECOVERING' -or $HandoffControl.generation -le $WriterPin.generation) { throw 'Unexpected HANDOFF result.' }
+# Same owner UUID, new actual generation. Do not guess generation 2 or 3.
+
+C. Drain before scanning; never manufacture shutdown proof
+
+Normally Ctrl+C bank/API/worker in their own terminals and wait for each real
+native exit. Verify PID + creation time + executable, do not kill unknown PIDs.
+Do not use the shell's Ctrl+C status as a substitute for a held native handle's
+exit code. Confirm no old API/bank listener or outstanding external request.
+
+Only after all three old processes really stopped, preserve old writer-pin and
+update generation from the saved actual HANDOFF output:
+Copy-Item -LiteralPath (Join-Path $R 'writer-pin.json') -Destination (Join-Path $R 'writer-pin.initial.json')
+$WriterPin.generation = $HandoffControl.generation
+$WriterPin | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $R 'writer-pin.json') -Encoding utf8NoBOM
+
+Build proof only from the actual helper EXIT records and fresh local checks.
+Do this BEFORE restarting bank. It deliberately stops on ambiguous/missing rows.
+Shell Ctrl+C exit is transport state; actual_exit_code in EXIT.json is from the
+pre-held native handle. An UNKNOWN/identity-unverified/nonzero result is not proof.
+
+$ArmControl = Get-Content -LiteralPath (Join-Path $R 'owner-arm-result.json') -Raw | ConvertFrom-Json
+$Rows = @(Get-ChildItem -LiteralPath (Join-Path $R 'processes') -Filter 'EXIT.json' -Recurse | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json })
+$Stopped = @()
+foreach ($RoleName in @('bank','api','worker')) {
+ $CandidateExits = @($Rows | Where-Object { $_.role -eq $RoleName -and $_.bootstrap_cycle -and $_.namespace -eq $Install.namespace -and $_.environment -eq $Install.environment -and $_.root -eq $Root -and $_.runtime_dir -eq $R -and $_.owner_id -eq $Install.owner_id })
+ if ($CandidateExits.Count -ne 1) { throw 'Missing/ambiguous bootstrap exit. Inspect originals; do not guess latest PID.' }
+ $ExitRecord = $CandidateExits[0]
+ if (!$ExitRecord.native_handle_held -or !$ExitRecord.identity_verified -or !$ExitRecord.verified_exited -or $ExitRecord.actual_exit_code -ne 0 -or $ExitRecord.pid -lt 1 -or !$ExitRecord.native_creation_filetime_100ns) { throw 'Native exit has not been proved.' }
+ if ($RoleName -ne 'bank' -and $ExitRecord.writer_generation -ne $ArmControl.generation) { throw 'Wrong initial generation.' }
+ $ExpectedExe = Join-Path $Root $(if ($RoleName -eq 'bank') {'bin/banksim.exe'} else {'bin/zhiyu.exe'})
+ if ($ExitRecord.native_exe -ne $ExpectedExe -or $ExitRecord.exe_sha256 -ne (Get-FileHash -LiteralPath $ExpectedExe -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'Known image changed.' }
+ $Stopped += [ordered]@{role=$RoleName;pid=$ExitRecord.pid;verified_exited=$true;sha256=$ExitRecord.exe_sha256}
+}
+$KnownExe = @((Join-Path $Root 'bin/zhiyu.exe'),(Join-Path $Root 'bin/banksim.exe'))
+$Live = @(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath -in $KnownExe })
+if ($Live.Count -ne 0) { throw 'A known local product process is still alive.' }
+$Connections = @(Get-NetTCPConnection -ErrorAction Stop | Where-Object { $_.LocalPort -in @($Install.ports.api,$Install.ports.bank) -and $_.State -in @('Listen','Established') })
+if ($Connections.Count -ne 0) { throw 'API/bank listeners or requests are not drained.' }
+$DockerHost = 'npipe:////./pipe/dockerDesktopLinuxEngine'
+$Format = '{"id":{{json .Id}},"running":{{json .State.Running}},"image":{{json .Config.Image}},"ports":{{json .HostConfig.PortBindings}},"mounts":{{json .Mounts}},"install":{{json (index .Config.Labels "zhiyu.install")}}}'
+$Container = docker.exe --host $DockerHost inspect --format $Format $Install.container | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0 -or !$Container.running -or $Container.image -ne $Install.postgres_image -or $Container.install -ne $Install.environment -or @($Container.mounts).Count -ne 1 -or $Container.mounts[0].Name -ne $Install.volume) { throw 'New local PostgreSQL identity differs.' }
+$Binding = $Container.ports.'5432/tcp'
+if (@($Binding).Count -ne 1 -or $Binding[0].HostIp -ne '127.0.0.1' -or $Binding[0].HostPort -ne [string]$Install.ports.postgres) { throw 'PostgreSQL mapping differs.' }
+docker.exe --host $DockerHost exec $Container.id pg_isready -U zygo_install_admin -d postgres
+if ($LASTEXITCODE -ne 0) { throw 'This PostgreSQL is not ready.' }
+$Proof = Get-Content -LiteralPath (Join-Path $R 'quiescence.template.json') -Raw | ConvertFrom-Json
+$Proof.processes = $Stopped
+$Proof.checked_at = [DateTimeOffset]::UtcNow.ToString('o')
+$Proof.all_registered_processes_stopped = $true
+$Proof.bank_process_stopped = $true
+$Proof.external_requests_drained = $true
+if (Test-Path -LiteralPath (Join-Path $R 'quiescence.json')) { throw 'Keep old proof; choose a new filename and update the activation template.' }
+$Proof | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $R 'quiescence.json') -Encoding utf8NoBOM
+# These flags now follow verified old native exits and actual current socket/PG
+# observations. Proof expires in ten minutes; a later system sleep needs fresh
+# observations. This is not a claim about an unrelated environment.
+
+Restart bank normally in its foreground terminal, WITHOUT migration flags:
+& $StartRole -Root $Root -Role bank
+
+With the actual new-generation pin, perform a fresh namespace scan:
+& $ZhiyuExe recovery-control -config $AppConfig -recovery-request (Join-Path $R 'owner-scan.json') | Tee-Object -LiteralPath (Join-Path $R 'owner-scan-result.json')
+if ($LASTEXITCODE -ne 0) { throw 'SCAN failed; remain RECOVERING.' }
+$Scan = Get-Content -LiteralPath (Join-Path $R 'owner-scan-result.json') -Raw | ConvertFrom-Json
+if ($Scan.state -ne 'READY' -or $Scan.missing_users -ne 0 -or $Scan.orphans -ne 0 -or $Scan.mismatches -ne 0 -or $Scan.unresolved -ne 0 -or $Scan.state_mismatches -ne 0) { throw 'SCAN not complete; do not activate.' }
+$ActivateRequest = Get-Content -LiteralPath (Join-Path $R 'owner-activate.template.json') -Raw | ConvertFrom-Json
+$ActivateRequest.run_id = $Scan.run_id
+$ActivateRequest | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $R 'owner-activate.json') -Encoding utf8NoBOM
+& $ZhiyuExe recovery-control -config $AppConfig -recovery-request (Join-Path $R 'owner-activate.json') | Tee-Object -LiteralPath (Join-Path $R 'owner-active-result.json')
+# ACTIVATE must succeed within 30 seconds of SCAN. If stale, retain it and make
+# a new normal scan/proof; do not edit old time, re-ARM or manufacture success.
+
+D. Daily run (after an actual ACTIVE result)
+
+Bank already runs with the normal flags above. Four other foreground terminals:
+& $StartRole -Root $Root -Role api
+& $StartRole -Root $Root -Role worker
+& $StartRole -Root $Root -Role native-standing
+& $StartRole -Root $Root -Role projection
+Open http://127.0.0.1:__API_PORT__ in Edge. The local session code is in this
+private demo-seed.json. Nothing sends it to an external service. First open has
+one zero account/goal; no historical/credit/asset/model fixtures or permissions
+are generated. Optional source/provider features remain unconfigured.
+
+For normal controlled shutdown, first make a fresh READ, verify same owner and
+full control, fill owner-read-only.template.json.expected with that exact object,
+then normal READ_ONLY through the CLI. Stop/wait the actual role processes and
+stop only this install's container; keep its volume. Do not re-ARM an existing
+install or use a copied generation/control from another namespace.

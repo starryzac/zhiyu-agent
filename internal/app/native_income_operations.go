@@ -41,6 +41,7 @@ func loadIncomeLocalOperations(ctx context.Context, tx pgx.Tx, p Principal, nati
 }
 
 func (s *Service) verifyIncomeOperations(ctx context.Context, tx pgx.Tx, p Principal, capture nativeIncomeCapture) error {
+	verifyIncomeOperationsAttempts.Add(1)
 	legacy := map[string]execution.BankResult{}
 	for _, r := range capture.Legacy {
 		if _, exists := legacy[r.Key]; exists {
@@ -93,14 +94,11 @@ func (s *Service) verifyIncomeOperations(ctx context.Context, tx pgx.Tx, p Princ
 	if err != nil {
 		return err
 	}
-	for _, o := range nativeRows {
-		var request bankv2.Request
-		if decode(o.Request, &request) != nil || request.Validate() != nil || request.Namespace != s.Namespace || o.Namespace != s.Namespace || request.UserID != p.UserID.String() || request.OperationID != o.ID || request.Key != o.Key {
-			return reject("INCOME_LOCAL_OPERATION_INVALID", nil)
-		}
-		h, err := request.Digest()
-		if err != nil || h != o.RequestHash {
-			return reject("INCOME_LOCAL_OPERATION_INVALID", err)
+	receipts := nativeIncomeReceiptReader{ctx: ctx, tx: tx, p: p, namespace: s.Namespace, operations: nativeRows, bank: native}
+	for i, o := range nativeRows {
+		request, h, err := nativeIncomeRequest(s.Namespace, p, o)
+		if err != nil {
+			return err
 		}
 		r, found := native[o.Key]
 		if o.State == "CANCELLED" {
@@ -118,7 +116,7 @@ func (s *Service) verifyIncomeOperations(ctx context.Context, tx pgx.Tx, p Princ
 			}
 		} else if o.State != "SETTLED" || r.Status != bankv2.Settled || o.ReceiptID == nil {
 			return reject("INCOME_OPERATION_PENDING", nil)
-		} else if err = verifyIncomeNativeReceipt(ctx, tx, p, o, request, r, s.now()); err != nil {
+		} else if err = receipts.verify(i, o, request, r, s.now()); err != nil {
 			return err
 		}
 		delete(native, o.Key)

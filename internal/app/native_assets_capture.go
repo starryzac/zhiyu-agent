@@ -3,6 +3,7 @@ package app
 import (
 	"zhiyu.local/zhiyu-go/internal/adapters/postgres"
 	funds "zhiyu.local/zhiyu-go/internal/funds/domain"
+	planning "zhiyu.local/zhiyu-go/internal/planning/domain"
 )
 
 // Explicit income facts are essential: IncomeLedger and IncomeOrigin have
@@ -45,27 +46,45 @@ func (c NativeAssetLedgerCapture) DomainLedger() (postgres.NativeLedger, error) 
 }
 
 func replayNativeAssetPreview(preview NativeAssetPreview) error {
+	return replayNativeAssetPreviewForecast(preview, planning.Forecast365)
+}
+
+func replayNativeAssetPreviewForecast(preview NativeAssetPreview, forecast nativeAssetForecast) error {
+	expected, capture, err := deriveNativeAssetReplayPreview(preview, forecast)
+	if err != nil {
+		return err
+	}
+	// Default and injectable replay always encode the current preview here.
+	return compareNativeAssetReplayPreview(expected, preview, &capture)
+}
+
+// Share all ledger/source/derive gates without accepting a retained body or a
+// comparison callback. Only the owning loader can locally reuse its own bytes.
+func deriveNativeAssetReplayPreview(preview NativeAssetPreview, forecast nativeAssetForecast) (NativeAssetPreview, nativeAssetReviewCapture, error) {
+	var capture nativeAssetReviewCapture
+	snapshot, err := nativeAssetReplaySnapshot(preview)
+	if err != nil {
+		return NativeAssetPreview{}, capture, err
+	}
+	expected, err := deriveNativeAssetPreviewWithReplayBody(forecast, &capture, snapshot, preview.Request, preview.ID, preview.SessionID, preview.BankState, preview.Quote, preview.PendingPurchases, nil, preview.ExpiresAt)
+	if err != nil {
+		return NativeAssetPreview{}, capture, reject("EVIDENCE_INVALID", err)
+	}
+	return expected, capture, nil
+}
+
+// These unchanged ledger/source gates prepare facts only. No retained body,
+// comparison callback or injected forecast can enter this shared preparation.
+func nativeAssetReplaySnapshot(preview NativeAssetPreview) (templateSnapshot, error) {
 	ledger, err := preview.Ledger.DomainLedger()
 	if err != nil {
-		return reject("EVIDENCE_INVALID", err)
+		return templateSnapshot{}, reject("EVIDENCE_INVALID", err)
 	}
 	if Hash(preview.InventoryOriginal) != preview.InventoryHash || ledger.Income.Snapshot().UserID != preview.Scope.UserID || !ledger.Income.Snapshot().AsOf.Equal(preview.CreatedAt) || len(preview.ForecastInput.FutureIncome) != 0 || len(preview.ForecastInput.PrincipalReturns) != 0 {
-		return reject("EVIDENCE_INVALID", nil)
+		return templateSnapshot{}, reject("EVIDENCE_INVALID", nil)
 	}
 	d := preview.Dependencies
 	snapshot := templateSnapshot{Facts: preview.ForecastInput.Facts, Versions: preview.ForecastInput.Versions, Views: preview.Policies, Retained: preview.ForecastInput.RetainedObligations, Held: preview.ForecastInput.HeldCash, UnassignedGoalCash: preview.ForecastInput.UnassignedGoalCash, InventoryRaw: preview.InventoryOriginal, FundsVersion: d.FundsVersion, SourceVersion: d.SourceEvidenceVersion, WriterGeneration: d.WriterGeneration, ControlVersion: d.ControlVersion, AsOf: preview.CreatedAt, Timezone: preview.Timezone, Native: &ledger}
 	snapshot.ExternalLiabilities = preview.ForecastInput.ExternalLiabilities
-	expected, err := deriveNativeAssetPreview(snapshot, preview.Request, preview.ID, preview.SessionID, preview.BankState, preview.Quote, preview.PendingPurchases, preview.ExpiresAt)
-	if err != nil {
-		return reject("EVIDENCE_INVALID", err)
-	}
-	a, err := encode(expected)
-	if err != nil {
-		return err
-	}
-	b, err := encode(preview)
-	if err != nil || string(a) != string(b) {
-		return reject("EVIDENCE_INVALID", err)
-	}
-	return nil
+	return snapshot, nil
 }

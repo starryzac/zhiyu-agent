@@ -45,6 +45,9 @@ func (s *Service) standingBridgeReject(ctx context.Context, tx pgx.Tx, c Claim, 
 	if e = s.finalizeStandingBridgeBudget(ctx, tx, p, g, true); e != nil {
 		return e
 	}
+	if e = s.recordNativeRejection(ctx, tx, p, c.OperationID, result); e != nil {
+		return e
+	}
 	if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {
 		return e
 	}
@@ -175,21 +178,11 @@ func (s *Service) standingBridgeBook(ctx context.Context, c Claim, request bankv
 	if e = s.Store.PersistNativeLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); e != nil {
 		return e
 	}
-	if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {
-		return e
-	}
-	_, deferred, e := s.refreshTemplateProtectionAfterNativeEffect(ctx, tx, p, g.Grant.Terms.Timezone)
-	if e != nil {
-		return e
-	}
 	closed := number == len(g.Steps)
 	if !closed {
-		permissionErr := error(nil)
-		if deferred {
-			permissionErr = reject("BILL_INTAKE_PENDING", nil)
-		} else {
-			permissionErr = s.validateStandingBridge(ctx, tx, p, g, number+1, now, false)
-		}
+		// The receipt and its actual destination funds are present, but this
+		// transaction's single FV/SV boundary is not published yet.
+		permissionErr := s.validateStandingBridge(ctx, tx, p, g, number+1, now, false)
 		if permissionErr != nil {
 			if Code(permissionErr) == "INTERNAL_ERROR" || Code(permissionErr) == "EVIDENCE_INVALID" {
 				return permissionErr
@@ -221,6 +214,14 @@ func (s *Service) standingBridgeBook(ctx context.Context, c Claim, request bankv
 		if e = s.Store.PersistNativeLedger(ctx, tx, p.EnvironmentID, p.UserID, ledger); e != nil {
 			return e
 		}
+	}
+	// Seal the completed effect together with any newly materialized T1
+	// reservation (or cancelled unsigned suffix), before publishing its source.
+	if _, e = tx.Exec(ctx, `UPDATE users SET funds_version=funds_version+1 WHERE environment_id=$1 AND id=$2`, p.EnvironmentID.String(), p.UserID.String()); e != nil {
+		return e
+	}
+	if _, _, e = s.refreshTemplateProtectionAfterNativeEffect(ctx, tx, p, g.Grant.Terms.Timezone); e != nil {
+		return e
 	}
 	if e = s.finalizeStandingBridgeBudget(ctx, tx, p, g, closed); e != nil {
 		return e
